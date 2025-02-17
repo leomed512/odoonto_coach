@@ -114,6 +114,12 @@ function guardarDatosEnTabla2() {
 
     actualizarTablaResumen(hojaMes);
 
+    ////////////////////////COBROS ADD
+        // Si el estado es "Aceptado", agregar a hojaCobros
+    if (datos[14][4] === "Aceptado") {
+        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[18][0]);
+    }
+
 // Limpiar el formulario después de guardar
     hojaFormulario.getRange(5, 3).setValue("");  // Fecha ingresada (C3)
     hojaFormulario.getRange(3, 3).setValue("");  // Paciente (B1)
@@ -147,27 +153,6 @@ function actualizarFiltroTabla(hojaMes, filaInicio) {
 }
 
 
-
-//////////////////////////////////////////////////////cobros
-// Función para simular la función de filtros de las tablas de excel
-// function actualizarFiltroTablaCobros(hojaCobros, filaInicio_cobro) {
-//     var ultimaFilaCobro = hojaCobros.getLastRow();
-//     var ultimaColumnaCobro = hojaCobros.getLastColumn();
-
-//     // Verificar si hay datos debajo de los encabezados
-//     if (ultimaFilaCobro > filaInicio_cobro) {
-//         var rangoFiltroCobros = hojaCobros.getRange(filaInicio_cobro, 1, ultimaFilaCobro - filaInicio_cobro + 1, ultimaColumnaCobro);
-        
-//         // Eliminar filtro antiguo si existe
-//         if (hojaCobros.getFilter()) {
-//             hojaCobros.getFilter().remove();
-//         }
-
-//         // Crear nuevo filtro sobre todas las filas de cobros
-//         rangoFiltroCobros.createFilter();
-//     }
-// }
-
 function actualizarFiltroTablaCobros(hojaCobros, filaInicio_cobro) {
     var ultimaFilaCobro = hojaCobros.getLastRow();
     var ultimaColumnaCobro = hojaCobros.getLastColumn();
@@ -189,35 +174,58 @@ function actualizarFiltroTablaCobros(hojaCobros, filaInicio_cobro) {
     rangoFiltroCobros.createFilter();
 }
 
+//  Función que agrega un paciente a la hoja de cobros si su estado es "Aceptado".
 
-/////////////////////////////////////////////////
+function agregarAPacientesAceptados(hojaCobros, paciente, fechaContacto, importeAceptado, observaciones) {
+    var ultimaFilaCobros = hojaCobros.getLastRow();
+    var filaEscribirCobro = ultimaFilaCobros < 4 ? 5 : ultimaFilaCobros + 1;
 
-// Trigger para detectar el cambio en el valor de ESTADO en la nueva hoja creada y cambiar el color de acuerdo al valor del dropdown
+    var nuevaFilaCobro = [paciente, fechaContacto, importeAceptado, "Pendiente", observaciones];
+    hojaCobros.getRange(filaEscribirCobro, 1, 1, nuevaFilaCobro.length).setValues([nuevaFilaCobro]);
+}
+
+
+
+
 function onEdit(e) {
     var hoja = e.source.getActiveSheet();
     var rango = e.range;
-    
-    var columnaEstado = 9; // Columna donde está el campo "Estado"
+    var columnaEstado = 9; // La columna "Estado"
 
-    // Si la edición no ocurre en la columna "Estado", salir
-    if (rango.getColumn() !== columnaEstado) {
-        return;
-    }
+    // Verificar que el cambio ocurre en la columna "Estado" y que la hoja no sea de cobros
+    if (!hoja.getName().startsWith("Cobros") && rango.getColumn() === columnaEstado) {
+        var estadoNuevo = rango.getValue();
+        var estadoPrevio = e.oldValue; // Captura el estado anterior
+        var fila = rango.getRow(); // Obtener la fila editada
+        var ultimaColumna = hoja.getLastColumn(); // Obtener la última columna con datos
+        var rangoFila = hoja.getRange(fila, 1, 1, ultimaColumna); // Selecciona toda la fila
 
-    // Obtener el valor del estado editado
-    var estado = rango.getValue();
-    var fila = rango.getRow();
-    var rangoFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn());
+        // **Actualizar el color de la fila según el estado nuevo**
+        if (estadoNuevo == "Aceptado") {
+            rangoFila.setBackground("#54c772"); // Verde
+        } else if (estadoNuevo == "Pendiente") {
+            rangoFila.setBackground("#fc9221"); // Naranja
+        } else if (estadoNuevo == "No aceptado") {
+            rangoFila.setBackground("#fc4c3d"); // Rojo
+        } else {
+            rangoFila.setBackground(null); // Restaurar color si no es un valor válido
+        }
 
-    // Aplicar colores según el estado seleccionado
-    if (estado == "Aceptado") {
-        rangoFila.setBackground("#54c772"); // Verde
-    } else if (estado == "Pendiente") {
-        rangoFila.setBackground("#FF9D23"); // Naranja
-    } else if (estado == "No aceptado") {
-        rangoFila.setBackground("#fc4c3d"); // Rojo
-    } else {
-        rangoFila.setBackground(null); // Restablecer el color si se borra el estado
+        // **Si el estado cambia a "Aceptado" desde cualquier otro estado, agregar a hojaCobros**
+        if (estadoPrevio !== "Aceptado" && estadoNuevo === "Aceptado") {
+            var paciente = hoja.getRange(fila, 2).getValue(); // Columna "Paciente"
+            var fechaContacto = hoja.getRange(fila, 1).getValue(); // Columna "Fecha de Contacto"
+            var importeAceptado = hoja.getRange(fila, 12).getValue(); // Columna "Importe Aceptado"
+            var observaciones = hoja.getRange(fila, 15).getValue(); // Columna "Observaciones"
+
+            var nombreMes = hoja.getName();
+            var ss = SpreadsheetApp.getActiveSpreadsheet();
+            var hojaCobros = ss.getSheetByName("Cobros " + nombreMes);
+
+            if (hojaCobros) {
+                agregarAPacientesAceptados(hojaCobros, paciente, fechaContacto, importeAceptado, observaciones);
+            }
+        }
     }
 }
 
@@ -320,4 +328,3 @@ function actualizarTablaResumen(hojaMes) {
 
 }
 
-FUNCIONA LA CREACION DE LA TABLA COBROS CON FILTROS
