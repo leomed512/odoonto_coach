@@ -156,7 +156,9 @@ function actualizarTablaResumen(hojaMes) {
 
 }
 
-// Actualizar valores de calculo en parrilla por mes
+// Actualizar valores de calculo en parrilla por mes, el color de la fila y agregar a hoja de cobro si cambia a aceptado
+
+
 function onEdit(e) {
     var hoja = e.source.getActiveSheet();
     var rango = e.range;
@@ -168,6 +170,23 @@ function onEdit(e) {
 
         // Verificar que no sea una celda de encabezado
         if (fila < 18) return;
+
+        // Obtener el estado anterior antes del cambio
+        var estadoAnterior = e.oldValue;
+
+        // Si el estado anterior era "Pendiente" y el nuevo estado es "Aceptado", agregar a Cobros
+        if (estadoAnterior === "Pendiente" && estadoNuevo === "Aceptado") {
+            var ss = SpreadsheetApp.getActiveSpreadsheet();
+            var nombreMes = hoja.getName();
+            var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
+
+            var paciente = hoja.getRange(fila, 2).getValue(); // Columna PACIENTE
+            var fecha = hoja.getRange(fila, 1).getValue(); // Columna FECHA
+            var importe = hoja.getRange(fila, 11).getValue(); // Columna IMPORTE ACEPTADO
+            var observaciones = hoja.getRange(fila, 15).getValue(); // Columna OBSERVACIONES
+
+            agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, observaciones);
+        }
 
         // Actualizar formato de la fila
         actualizarFormatoFila(hoja, fila, estadoNuevo);
