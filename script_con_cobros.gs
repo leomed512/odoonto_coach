@@ -1,4 +1,4 @@
-function guardarDatosEnTabla2() {
+function guardarDatosEnTabla() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaFormulario = ss.getSheetByName("Registro de transacciones");
 
@@ -15,316 +15,164 @@ function guardarDatosEnTabla2() {
     }
 
     var fechaIngresada = datos[2][1];
-
-    if (!fechaIngresada || fechaIngresada == "") {
+    if (!fechaIngresada) {
         Browser.msgBox("Error: Debes ingresar una fecha.");
         return;
     }
 
     var fecha = new Date(fechaIngresada);
-    var opciones = { year: "numeric", month: "long" };
-    var nombreMes = fecha.toLocaleDateString("es-ES", opciones);
+    var nombreMes = fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long" });
     nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
 
-    var hojaMes = ss.getSheetByName(nombreMes);
-    var filaInicio = 17; // Fila donde comienzan los encabezados
+    var hojaMes = ss.getSheetByName(nombreMes) || crearHojaMes(ss, nombreMes);
+    var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
 
-    ///////////////////////////////////////////////////////////COBRO
-    var hojaCobros = ss.getSheetByName("Cobros " + nombreMes);
-    var filaInicio_cobro = 4; // Fila donde comienzan los encabezados de COBRO
-    ///////////////////////////////////////////////////////////
-
-    if (!hojaMes) {
-        hojaMes = ss.insertSheet(nombreMes);
-
-        var encabezados = ["FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "CAMPAÑA", "ESTADO", "IMPORTE PRESUPUESTADO", "N° PTOS", "IMPORTE ACEPTADO", "FECHA DE INICIO", "PLAN DE CITAS", "OBSERVACIONES"];
-        hojaMes.getRange(filaInicio, 1, 1, encabezados.length).setValues([encabezados]);
-
-        var rangoEncabezados = hojaMes.getRange(filaInicio, 1, 1, encabezados.length);
-        rangoEncabezados.setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
-
-        //  Activar filtros en los encabezados
-        hojaMes.getRange(filaInicio, 1, 1, encabezados.length).createFilter();
-    }
-
-    //////////////////////////////////COBRO
-        // Si no existe la hoja de "Cobros [Mes Año]", crearla automáticamente
-      if (!hojaCobros) {
-        hojaCobros = ss.insertSheet("Cobros " + nombreMes);
-
-        // **Agregar encabezados en la hoja de Cobros**
-        var encabezadosCobros = ["FECHA DE COBRO", "PACIENTE", "IMPORTE COBRADO", "MÉTODO DE PAGO", "ESTADO DEL COBRO", "OBSERVACIONES"];
-        hojaCobros.getRange(filaInicio_cobro, 1, 1, encabezadosCobros.length).setValues([encabezadosCobros]);
-        //hojaCobros.appendRow(encabezadosCobros);
-
-        // **Aplicar estilos a los encabezados**
-        var rangoEncabezadosCobros = hojaCobros.getRange(filaInicio_cobro, 1, 1, encabezadosCobros.length);
-        rangoEncabezadosCobros.setFontWeight("bold");
-        rangoEncabezadosCobros.setBackground("#424242");
-        rangoEncabezadosCobros.setFontColor("white");
-        rangoEncabezadosCobros.setHorizontalAlignment("center");
-
-
-    }
-    ////////////////////COBROS
-    actualizarFiltroTablaCobros(hojaCobros, filaInicio_cobro);
-    hojaCobros.autoResizeColumns(1, hojaCobros.getLastColumn());
-    ////////////////////////////////////////////////
-
-    var ultimaFila = hojaMes.getLastRow();
-    var filaEscribir = (ultimaFila < filaInicio) ? filaInicio + 1 : ultimaFila + 1;
-
-    //  Si la hoja está completamente vacía, asegurarnos de que empiece en la fila 18
-    if (ultimaFila === 0) {
-        filaEscribir = filaInicio + 1;
-    }
+    var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
 
     var nuevaFila = [
         fechaIngresada, datos[0][1], datos[4][1], datos[9][0], datos[9][1], datos[9][2], datos[9][3], datos[9][4], datos[14][4], 
         datos[14][0], datos[14][1], datos[14][2], datos[14][3], datos[9][5], datos[18][0]
     ];
-
     hojaMes.getRange(filaEscribir, 1, 1, nuevaFila.length).setValues([nuevaFila]);
 
-    // Aplicar formato de tabla y filtros
-    actualizarFiltroTabla(hojaMes, filaInicio);
 
-    //  Ajustar ancho de columnas automáticamente
-    hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
+    // Aplicar formatos y validaciones
+    actualizarFormatoFila(hojaMes, filaEscribir, datos[14][4]);
 
-    hojaMes.getRange(filaEscribir, 10).setNumberFormat("#,##0.00€");
-    hojaMes.getRange(filaEscribir, 12).setNumberFormat("#,##0.00€");
-
-    var estado = datos[14][4];
-    var rangoFila = hojaMes.getRange(filaEscribir, 1, 1, nuevaFila.length);
-
-    if (estado == "Aceptado") {
-        rangoFila.setBackground("#54c772");
-    } else if (estado == "Pendiente") {
-        rangoFila.setBackground("#FF9D23");
-    } else if (estado == "No aceptado") {
-        rangoFila.setBackground("#fc4c3d");
+    if (datos[14][4] === "Aceptado") {
+        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[18][0]);
     }
+    actualizarTablaResumen(hojaMes);
+
+    limpiarFormulario(hojaFormulario);
+    Logger.log("✅ Datos guardados en '" + nombreMes + "' correctamente.");
+    Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
+}
+
+function crearHojaMes(ss, nombreMes) {
+    var hojaMes = ss.insertSheet(nombreMes);
+    var encabezados = ["FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "CAMPAÑA", "ESTADO", "IMPORTE PRESUPUESTADO", "N° PTOS", "IMPORTE ACEPTADO", "FECHA DE INICIO", "PLAN DE CITAS", "OBSERVACIONES"];
+    hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+    hojaMes.getRange(17, 1, 1, encabezados.length).createFilter();
+    hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
+    return hojaMes;
+}
+
+function crearHojaCobros(ss, nombreMes) {
+    var hojaCobros = ss.insertSheet("Cobros " + nombreMes);
+    var encabezados = ["FECHA DE COBRO", "PACIENTE", "IMPORTE COBRADO", "MÉTODO DE PAGO", "ESTADO DEL COBRO", "OBSERVACIONES"];
+    hojaCobros.getRange(4, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+    hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
+    hojaCobros.autoResizeColumns(1, hojaCobros.getLastColumn());
+    return hojaCobros;
+}
+
+function actualizarFormatoFila(hoja, fila, estado) {
+    var rangoFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn());
+    var colores = { "Aceptado": "#54c772", "Pendiente": "#FF9D23", "No aceptado": "#fc4c3d" };
+    rangoFila.setBackground(colores[estado] || null);
 
     var reglaValidacion = SpreadsheetApp.newDataValidation()
         .requireValueInList(["Aceptado", "Pendiente", "No aceptado"], true)
         .setAllowInvalid(false)
         .build();
-    hojaMes.getRange(filaEscribir, 9).setDataValidation(reglaValidacion);
-
-    actualizarTablaResumen(hojaMes);
-
-    ////////////////////////COBROS ADD
-        // Si el estado es "Aceptado", agregar a hojaCobros
-    if (datos[14][4] === "Aceptado") {
-        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[18][0]);
-    }
-
-// Limpiar el formulario después de guardar
-    hojaFormulario.getRange(5, 3).setValue("");  // Fecha ingresada (C3)
-    hojaFormulario.getRange(3, 3).setValue("");  // Paciente (B1)
-    hojaFormulario.getRange(7, 3).setValue("");  // Teléfono (B5)
-    hojaFormulario.getRange(12, 2).setValue(""); // Doctor/a (A10)
-    hojaFormulario.getRange(12, 3).setValue(""); // Auxiliar (B10)
-    hojaFormulario.getRange(12, 4).setValue(""); // Tipología PV (C10)
-    hojaFormulario.getRange(12, 5).setValue(""); // Subtipología (D10)
-    hojaFormulario.getRange(12, 6).setValue(""); // Campaña (E10)
-    hojaFormulario.getRange(17, 6).setValue(""); // Estado (E15)
-    hojaFormulario.getRange(17, 2).setValue(""); // Importe presupuestado (A15)
-    hojaFormulario.getRange(17, 3).setValue(""); // Número de presupuestos (B15)
-    hojaFormulario.getRange(17, 4).setValue(""); // Importe aceptado (C15)
-    hojaFormulario.getRange(17, 5).setValue(""); // Fecha de empezar (D15)
-    hojaFormulario.getRange(12, 7).setValue(""); // Plan de citas (F10)
-    hojaFormulario.getRange(21, 2).setValue(""); // Observaciones (A19)
-
-    Logger.log("✅ Datos guardados en '" + nombreMes + "' correctamente.");
-    Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
+    hoja.getRange(fila, 9).setDataValidation(reglaValidacion);
 }
 
-// /**
-// Función para simular la función de filtros de las tablas de excel
-//  */
-function actualizarFiltroTabla(hojaMes, filaInicio) {
-    var rangoFiltro = hojaMes.getRange(filaInicio, 1, hojaMes.getLastRow(), hojaMes.getLastColumn());
-    if (hojaMes.getFilter()) {
-        hojaMes.getFilter().remove(); // Eliminar filtro antiguo
-    }
-    rangoFiltro.createFilter(); // Crear nuevo filtro que abarque todas las filas
+function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, observaciones) {
+    var filaEscribir = hojaCobros.getLastRow() < 4 ? 5 : hojaCobros.getLastRow() + 1;
+    hojaCobros.getRange(filaEscribir, 1, 1, 5).setValues([[fecha, paciente, importe, "Pendiente", observaciones]]);
+}
+
+function limpiarFormulario(hoja) {
+    var celdas = ["C3", "C5", "C7","B12", "C12", "D12", "E12", "F12", "G12", "B17", "C17", "D17", "E17", "F17", "B21"];
+    celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
 
 
-function actualizarFiltroTablaCobros(hojaCobros, filaInicio_cobro) {
-    var ultimaFilaCobro = hojaCobros.getLastRow();
-    var ultimaColumnaCobro = hojaCobros.getLastColumn();
+function actualizarTablaResumen(hojaMes) {
+    var totalPresupuestado = 0, totalAceptado = 0, pacientesAceptados = 0, totalPacientes = 0;
 
-    // Asegurar que al menos haya espacio para aplicar el filtro
-    var filasDisponibles = hojaCobros.getMaxRows();
-    if (ultimaFilaCobro < filaInicio_cobro + 1) {
-        ultimaFilaCobro = filaInicio_cobro + 1; // Asegurar que al menos haya una fila después de los encabezados
+    // Verificar si la tabla ya existe en la hoja
+    var celdaCheck = hojaMes.getRange("C4").getValue();
+    var tablaExiste = celdaCheck && celdaCheck.toString().trim().toUpperCase().includes("TOTAL PRESUPUESTADO");
+
+    if (!tablaExiste) {
+        var resumenEncabezados = [
+            ["ENVIAR SEMANALMENTE", "", ""],  
+            ["Gerencia@odontologycoach.cr", "", ""],  
+            ["", "IMPORTES", "N° PACIENTES"],  
+            ["TOTAL PRESUPUESTADO", "", ""],  
+            ["TOTAL ACEPTADO", "", ""],  
+            ["TOTAL COBRADO", "", ""],  
+            ["PTO MEDIO", "", ""]   
+        ];
+
+        hojaMes.getRange(1, 2, resumenEncabezados.length, 3).setValues(resumenEncabezados);
+        hojaMes.autoResizeColumns(2, 3); 
+
+        var estilos = [
+            ["B1:C1", "#00c896", true], ["B2:C2", "#f2ecff", false], ["C3:D3", "#424242", true, "#FFFFFF"],
+            ["B4", "#e2e2e2", true], ["B5", "#f6f6f6", true], ["B6", "#e2e2e2", true], ["B7", "#f6f6f6", true],
+            ["C4", "#f6f6f6", true], ["C5", "#e2e2e2", true], ["C6", "#f6f6f6", true], ["C7", "#e2e2e2", true],
+            ["D4", "#e2e2e2"], ["D5", "#f6f6f6"], ["D6", "#e2e2e2"]
+        ];
+        
+        estilos.forEach(item => {
+            var celda = hojaMes.getRange(item[0]);
+            celda.setBackground(item[1]);
+            if (item[2]) celda.setFontWeight("bold");
+            if (item.length === 4) celda.setFontColor(item[3]);
+        });
     }
 
-    var rangoFiltroCobros = hojaCobros.getRange(filaInicio_cobro, 1, filasDisponibles - filaInicio_cobro + 1, ultimaColumnaCobro);
+    // Obtener los datos de la tabla desde la fila 18 en adelante
+    var datosCompletos = hojaMes.getRange("A18:Z" + hojaMes.getLastRow()).getValues();
 
-    // Eliminar filtro antiguo si existe
-    if (hojaCobros.getFilter()) {
-        hojaCobros.getFilter().remove();
-    }
+    datosCompletos.forEach(fila => {
+        var estado = fila[8] ? fila[8].toString().trim().toLowerCase() : "";
+        var importePresupuestado = parseFloat(fila[9]) || 0;
+        var importeAceptado = parseFloat(fila[11]) || 0;
 
-    // Aplicar el filtro en la tabla de cobros
-    rangoFiltroCobros.createFilter();
+        if (estado === "aceptado") pacientesAceptados++;
+        if (importePresupuestado > 0) {
+            totalPacientes++;
+            totalPresupuestado += importePresupuestado;
+        }
+        if (estado === "aceptado") totalAceptado += importeAceptado;
+    });
+
+    var pto_medio = totalPacientes > 0 ? totalPresupuestado / totalPacientes : 0;
+
+    // Actualizar todos los valores en una sola llamada
+    var valoresResumen = [
+        [totalPresupuestado.toFixed(2) + " €", totalPacientes],
+        [totalAceptado.toFixed(2) + " €", pacientesAceptados],
+        ["", ""], 
+        [pto_medio.toFixed(2) + " €", ""]
+    ];
+    hojaMes.getRange(4, 3, valoresResumen.length, 2).setValues(valoresResumen);
+    hojaMes.autoResizeColumns(2, 4); 
+
 }
 
-//  Función que agrega un paciente a la hoja de cobros si su estado es "Aceptado".
-
-function agregarAPacientesAceptados(hojaCobros, paciente, fechaContacto, importeAceptado, observaciones) {
-    var ultimaFilaCobros = hojaCobros.getLastRow();
-    var filaEscribirCobro = ultimaFilaCobros < 4 ? 5 : ultimaFilaCobros + 1;
-
-    var nuevaFilaCobro = [paciente, fechaContacto, importeAceptado, "Pendiente", observaciones];
-    hojaCobros.getRange(filaEscribirCobro, 1, 1, nuevaFilaCobro.length).setValues([nuevaFilaCobro]);
-}
-
-
-
-
+// Actualizar valores de calculo en parrilla por mes
 function onEdit(e) {
     var hoja = e.source.getActiveSheet();
     var rango = e.range;
-    var columnaEstado = 9; // La columna "Estado"
 
-    // Verificar que el cambio ocurre en la columna "Estado" y que la hoja no sea de cobros
-    if (!hoja.getName().startsWith("Cobros") && rango.getColumn() === columnaEstado) {
+    // Verificar si la edición se hizo en la columna 9 ("Estado") y no en la tabla de cobros
+    if (rango.getColumn() === 9 && !hoja.getName().startsWith("Cobros")) {
         var estadoNuevo = rango.getValue();
-        var estadoPrevio = e.oldValue; // Captura el estado anterior
-        var fila = rango.getRow(); // Obtener la fila editada
-        var ultimaColumna = hoja.getLastColumn(); // Obtener la última columna con datos
-        var rangoFila = hoja.getRange(fila, 1, 1, ultimaColumna); // Selecciona toda la fila
+        var fila = rango.getRow();
 
-        // **Actualizar el color de la fila según el estado nuevo**
-        if (estadoNuevo == "Aceptado") {
-            rangoFila.setBackground("#54c772"); // Verde
-        } else if (estadoNuevo == "Pendiente") {
-            rangoFila.setBackground("#fc9221"); // Naranja
-        } else if (estadoNuevo == "No aceptado") {
-            rangoFila.setBackground("#fc4c3d"); // Rojo
-        } else {
-            rangoFila.setBackground(null); // Restaurar color si no es un valor válido
-        }
+        // Verificar que no sea una celda de encabezado
+        if (fila < 18) return;
 
-        // **Si el estado cambia a "Aceptado" desde cualquier otro estado, agregar a hojaCobros**
-        if (estadoPrevio !== "Aceptado" && estadoNuevo === "Aceptado") {
-            var paciente = hoja.getRange(fila, 2).getValue(); // Columna "Paciente"
-            var fechaContacto = hoja.getRange(fila, 1).getValue(); // Columna "Fecha de Contacto"
-            var importeAceptado = hoja.getRange(fila, 12).getValue(); // Columna "Importe Aceptado"
-            var observaciones = hoja.getRange(fila, 15).getValue(); // Columna "Observaciones"
+        // Actualizar formato de la fila
+        actualizarFormatoFila(hoja, fila, estadoNuevo);
 
-            var nombreMes = hoja.getName();
-            var ss = SpreadsheetApp.getActiveSpreadsheet();
-            var hojaCobros = ss.getSheetByName("Cobros " + nombreMes);
-
-            if (hojaCobros) {
-                agregarAPacientesAceptados(hojaCobros, paciente, fechaContacto, importeAceptado, observaciones);
-            }
-        }
+        // Llamar a actualizarTablaResumen
+        actualizarTablaResumen(hoja);
     }
 }
-
-// limpiar datos del formulario si se desea cancelar la operación antes de guardar
-function borrarDatosRegistro(){
-      var ss_del = SpreadsheetApp.getActiveSpreadsheet();
-      var hojaFormulario_del = ss_del.getSheetByName("Registro de transacciones"); // Hoja de entrada
-         hojaFormulario_del.getRange(5, 3).setValue("");  // Fecha ingresada (C3)
-    hojaFormulario_del.getRange(3, 3).setValue("");  // Paciente (B1)
-    hojaFormulario_del.getRange(7, 3).setValue("");  // Teléfono (B5)
-    hojaFormulario_del.getRange(12, 2).setValue(""); // Doctor/a (A10)
-    hojaFormulario_del.getRange(12, 3).setValue(""); // Auxiliar (B10)
-    hojaFormulario_del.getRange(12, 4).setValue(""); // Tipología PV (C10)
-    hojaFormulario_del.getRange(12, 5).setValue(""); // Subtipología (D10)
-    hojaFormulario_del.getRange(12, 6).setValue(""); // Campaña (E10)
-    hojaFormulario_del.getRange(17, 6).setValue(""); // Estado (E15)
-    hojaFormulario_del.getRange(17, 2).setValue(""); // Importe presupuestado (A15)
-    hojaFormulario_del.getRange(17, 3).setValue(""); // Número de presupuestos (B15)
-    hojaFormulario_del.getRange(17, 4).setValue(""); // Importe aceptado (C15)
-    hojaFormulario_del.getRange(17, 5).setValue(""); // Fecha de empezar (D15)
-    hojaFormulario_del.getRange(12, 7).setValue(""); // Plan de citas (F10)
-    hojaFormulario_del.getRange(21, 2).setValue(""); // Observaciones (A19)
-      Browser.msgBox("Datos borrados del formulario correctamente");
-}
-
-function actualizarTablaResumen(hojaMes) {
-    var totalPresupuestado = 0;
-    var totalAceptado = 0;
-    var pacientesAceptados = 0;
-    var totalPacientes = 0;
-    // Verificar si la tabla ya existe en la hoja
-    var celdaCheck = hojaMes.getRange("C4").getValue();
-    var tablaExiste = (celdaCheck && celdaCheck.toString().trim().toUpperCase() === "TOTAL PRESUPUESTADO");
-
-    if (!tablaExiste) {
-        // Definir la estructura de la tabla con exactamente 3 columnas en todas las filas
-        var resumenEncabezados = [
-            ["ENVIAR SEMANALMENTE", "", ""],  // B1
-            ["Gerencia@odontologycoach.cr", "", ""],  // B2
-            ["", "IMPORTES", "N° PACIENTES"],  // C3:E3
-            ["TOTAL PRESUPUESTADO", "", ""],  // C4:E4
-            ["TOTAL ACEPTADO", "", ""],  // C5:E5
-            ["TOTAL COBRADO", "", ""],  // C6:E6
-            ["PTO MEDIO", "", ""]   // C7:E7
-        ];
-
-        // Insertar la tabla en las posiciones correctas
-        hojaMes.getRange(1, 2, resumenEncabezados.length, 3).setValues(resumenEncabezados);
-        hojaMes.autoResizeColumns(2,3); // Ajustar tamaño de columnas al texto
-
-        // Aplicar colores a los encabezados
-        hojaMes.getRange("B1:C1").setBackground("#00c896").setFontWeight("bold"); // Fondo lila claro
-        hojaMes.getRange("B2:C2").setBackground("#f2ecff")
-        hojaMes.getRange("C3:D3").setBackground("#424242").setFontColor("#FFFFFF").setFontWeight("bold"); // Gris con letras blancas
-        /////
-        hojaMes.getRange("B4").setBackground("#e2e2e2").setFontWeight("bold"); 
-        hojaMes.getRange("B5").setBackground("#f6f6f6").setFontWeight("bold"); 
-        hojaMes.getRange("B6").setBackground("#e2e2e2").setFontWeight("bold"); 
-        hojaMes.getRange("B7").setBackground("#f6f6f6").setFontWeight("bold"); 
-
-        hojaMes.getRange("C4").setBackground("#f6f6f6").setFontWeight("bold"); 
-        hojaMes.getRange("C5").setBackground("#e2e2e2").setFontWeight("bold"); 
-        hojaMes.getRange("C6").setBackground("#f6f6f6").setFontWeight("bold");
-        hojaMes.getRange("C7").setBackground("#e2e2e2").setFontWeight("bold"); 
-        ///////////////
-        hojaMes.getRange("D4").setBackground("#e2e2e2"); 
-        hojaMes.getRange("D5").setBackground("#f6f6f6"); 
-        hojaMes.getRange("D6").setBackground("#e2e2e2"); 
-    }
-
-    // Obtener los datos de la tabla principal (desde fila 17 en adelante)
-    var datosCompletos = hojaMes.getRange("A18:Z").getValues();
-    
-    for (var i = 0; i < datosCompletos.length; i++) { 
-        var estado = datosCompletos[i][8] ? datosCompletos[i][8].toString().trim().toLowerCase() : ""; // Estado en columna "I"
-
-        if (estado === "aceptado") {
-            pacientesAceptados++;
-        }
-        if (datosCompletos[i][9]) { // Importe Presupuestado en columna "J"
-            totalPacientes++;
-        }
-        if (datosCompletos[i][9]) { // Importe Presupuestado en columna "J"
-            totalPresupuestado += parseFloat(datosCompletos[i][9]) || 0;
-        }
-        if (datosCompletos[i][11] && (estado === "aceptado") ){ // Importe Aceptado en columna "L"
-            totalAceptado += parseFloat(datosCompletos[i][11]) || 0;
-        }
-    }
-
-    // ✅ Actualizar la tabla resumen con valores en tiempo real
-    hojaMes.getRange(4, 3).setValue(totalPresupuestado.toFixed(2) + " €");
-    hojaMes.getRange(4, 4).setValue(totalPacientes).setNumberFormat("0");
-
-    hojaMes.getRange(5, 3).setValue(totalAceptado.toFixed(2) + " €");
-    hojaMes.getRange(5, 4).setValue(pacientesAceptados).setNumberFormat("0");
-    pto_medio = totalPresupuestado/totalPacientes
-    hojaMes.getRange(7, 3).setValue(pto_medio.toFixed(2) + " €");
-    
-
-}
-
