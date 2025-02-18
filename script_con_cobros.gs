@@ -37,7 +37,6 @@ function guardarDatosEnTabla() {
     ];
     hojaMes.getRange(filaEscribir, 1, 1, nuevaFila.length).setValues([nuevaFila]);
 
-
     // Aplicar formatos y validaciones
     actualizarFormatoFila(hojaMes, filaEscribir, datos[14][4]);
 
@@ -45,7 +44,6 @@ function guardarDatosEnTabla() {
         agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[18][0]);
     }
     actualizarTablaResumen(hojaMes);
-
     limpiarFormulario(hojaFormulario);
     Logger.log("✅ Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
@@ -62,7 +60,7 @@ function crearHojaMes(ss, nombreMes) {
 
 function crearHojaCobros(ss, nombreMes) {
     var hojaCobros = ss.insertSheet("Cobros " + nombreMes);
-    var encabezados = ["FECHA DE COBRO", "PACIENTE", "IMPORTE COBRADO", "MÉTODO DE PAGO", "ESTADO DEL COBRO", "OBSERVACIONES"];
+    var encabezados = ["FECHA DE COBRO", "PACIENTE", "DOCTOR", "IMPORTE COBRADO", "MÉTODO DE PAGO", "ESTADO DEL COBRO"];
     hojaCobros.getRange(4, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
     hojaCobros.autoResizeColumns(1, hojaCobros.getLastColumn());
@@ -81,9 +79,9 @@ function actualizarFormatoFila(hoja, fila, estado) {
     hoja.getRange(fila, 9).setDataValidation(reglaValidacion);
 }
 
-function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, observaciones) {
+function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor) {
     var filaEscribir = hojaCobros.getLastRow() < 4 ? 5 : hojaCobros.getLastRow() + 1;
-    hojaCobros.getRange(filaEscribir, 1, 1, 5).setValues([[fecha, paciente, importe, "Pendiente", observaciones]]);
+    hojaCobros.getRange(filaEscribir, 1, 1, 6).setValues([[fecha, paciente, doctor, importe, "X", "Y"]]);
 }
 
 function limpiarFormulario(hoja) {
@@ -177,17 +175,18 @@ function onEdit(e) {
         var estadoAnterior = e.oldValue;
 
         // Si el estado anterior era "Pendiente" y el nuevo estado es "Aceptado", agregar a Cobros
-        if (estadoAnterior === "Pendiente" && estadoNuevo === "Aceptado") {
+        if (estadoAnterior === "Pendiente" || estadoAnterior === "No Aceptado"  && estadoNuevo === "Aceptado") {
             var ss = SpreadsheetApp.getActiveSpreadsheet();
             var nombreMes = hoja.getName();
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
         ///// variables que van a cobros
             var paciente = hoja.getRange(fila, 2).getValue(); // Columna PACIENTE
             var fecha = hoja.getRange(fila, 1).getValue(); // Columna FECHA
+            var doctor = hoja.getRange(fila, 4).getValue(); // Columna DOCTOR 
             var importe = hoja.getRange(fila, 11).getValue(); // Columna IMPORTE ACEPTADO
-            var observaciones = hoja.getRange(fila, 15).getValue(); // Columna OBSERVACIONES
 
-            agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, "Pendiente", observaciones);
+            agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor);
+
         }
 
         // Actualizar formato de la fila
