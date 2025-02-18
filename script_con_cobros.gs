@@ -66,6 +66,23 @@ function crearHojaCobros(ss, nombreMes) {
     hojaCobros.getRange(4, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
     hojaCobros.autoResizeColumns(1, hojaCobros.getLastColumn());
+    //////////////////
+    // Definir el rango de opciones para el método de pago
+    var opcionesMetodoPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+    var reglaValidacion_cobro = SpreadsheetApp.newDataValidation()
+    .requireValueInList(opcionesMetodoPago, true)
+    .setAllowInvalid(false)
+    .build();
+
+// Aplicar la validación solo a las filas con datos en la hojaCobros
+var ultimaFilaConDatos = hojaCobros.getLastRow();
+
+if (ultimaFilaConDatos > 4) { // Evita aplicar a filas vacías
+    hojaCobros.getRange(5, 5, ultimaFilaConDatos - 4, 1).setDataValidation(reglaValidacion_cobro);
+}
+
+
+    ////////////////
     return hojaCobros;
 }
 
@@ -83,9 +100,18 @@ function actualizarFormatoFila(hoja, fila, estado) {
 
 function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor) {
     var filaEscribir = hojaCobros.getLastRow() < 4 ? 5 : hojaCobros.getLastRow() + 1;
-    hojaCobros.getRange(filaEscribir, 1, 1, 6).setValues([[fecha, paciente, doctor, importe, "X", "Y"]]);
+    // Aplicar dropdown de MÉTODO DE PAGO solo a la nueva fila insertada
+    hojaCobros.getRange(filaEscribir, 1, 1, 6).setValues([[fecha, paciente, doctor, importe, "", "Y"]]);
     // Aplicar formato de moneda en euros a la columna IMPORTE COBRADO (columna 4)
     hojaCobros.getRange(filaEscribir, 4).setNumberFormat("€#,##0.00");
+    // 🔹 Volver a definir la regla de validación dentro de esta función
+    var opcionesMetodoPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+    var reglaValidacion_cobro = SpreadsheetApp.newDataValidation()
+        .requireValueInList(opcionesMetodoPago, true)
+        .setAllowInvalid(false)
+        .build();
+
+    hojaCobros.getRange(filaEscribir, 5).setDataValidation(reglaValidacion_cobro);
 
 }
 
@@ -201,4 +227,5 @@ function onEdit(e) {
         actualizarTablaResumen(hoja);
     }
 }
+
 
