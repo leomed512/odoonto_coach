@@ -71,6 +71,20 @@ function crearHojaCobros(ss, nombreMes) {
         .setFontColor("white")
         .setHorizontalAlignment("center");
     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
+
+    //////////////////////////
+    var fechaActual = new Date();
+    var titulo = "Caja de " + nombreMes ;
+    hojaCobros.getRange(1, 1).setValue(titulo)
+        .setFontWeight("bold")
+        .setFontSize(18);
+    
+    // Insertar texto en la fila 3, fusionando las celdas E3:H3
+    hojaCobros.getRange(3, 5, 1, 4).merge().setValue("Modifica manualmente estas columnas")
+        .setFontSize(10)
+        .setBackground("#00c896")
+        .setFontColor("#424242") // Gris plomo oscuro
+        .setHorizontalAlignment("center");
     
     // Nueva tabla de resumen
     var encabezadosResumen = ["TIPO DE PAGO", "N° PACIENTES", "TOTAL / TIPO"];
@@ -128,6 +142,27 @@ function crearHojaCobros(ss, nombreMes) {
         .setHorizontalAlignment("right")
         .setNumberFormat("€#,##0.00");
 
+         // Agregar fila "TOTAL COBRADO" justo debajo del total
+    var filaTotalCobrado = filaTotales + 1;
+    hojaCobros.getRange(filaTotalCobrado, 10).setValue("TOTAL COBRADO")
+        .setFontWeight("bold")
+        .setBackground("#999999")
+        .setFontColor("black");
+
+    // Dejar la columna del medio vacía
+    hojaCobros.getRange(filaTotalCobrado, 11).setValue("")
+        .setBackground("#999999");
+
+    // Fórmula para total cobrado condicionalmente de la columna "TOTAL PAGADO"
+    // hojaCobros.getRange(filaTotalCobrado, 12).setFormula("=SUMIF(F:F, \"PAGADO\", G:G)")
+    hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUMIF(F:F, "PAGADO", G:G) + SUMIF(E:E, {"Pronto pago", "Según TTO"}, D:D)') 
+        .setFontWeight("bold")
+        .setBackground("#999999")
+        .setFontColor("black")
+        .setHorizontalAlignment("right")
+        .setNumberFormat("€#,##0.00");
+    
+
     // Validación para método de pago
     var reglaValidacion_cobro = SpreadsheetApp.newDataValidation()
         .requireValueInList(tiposPago, true)
@@ -171,6 +206,13 @@ function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor
     // Aplicar formato de moneda en euros a la columna IMPORTE TOTAL (columna 4 Y 7)
     hojaCobros.getRange(filaEscribir, 4).setNumberFormat("€#,##0.00");
     hojaCobros.getRange(filaEscribir, 7).setNumberFormat("€#,##0.00");
+
+    var formulaEstadoCobro = `=IF(OR(E${filaEscribir}="Pronto pago", E${filaEscribir}="Según TTO"), "PAGADO", 
+                                  IF(OR(E${filaEscribir}="FINANC", E${filaEscribir}="70/30 o 50/50"), 
+                                     IF(G${filaEscribir}=D${filaEscribir}, "PAGADO", "EN PROCESO"),
+                                  ""))`;
+                                  
+    hojaCobros.getRange(filaEscribir, 6).setFormula(formulaEstadoCobro);
     
     // Definir la regla de validación
     var opcionesMetodoPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
@@ -181,6 +223,10 @@ function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor
 
     // Aplicar la validación a la celda de método de pago
     hojaCobros.getRange(filaEscribir, 5).setDataValidation(reglaValidacion_cobro);
+
+    /////////
+      hojaCobros.getRange(filaEscribir, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
+
 }
 
 function limpiarFormulario(hoja) {
@@ -293,6 +339,8 @@ function onEdit(e) {
 
         // Llamar a actualizarTablaResumen
         actualizarTablaResumen(hoja);
+        // ✅ Aplicar validación de fecha SOLO en la celda correspondiente
+            hojaCobros.getRange(filaCobros, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
     }
 }
 
