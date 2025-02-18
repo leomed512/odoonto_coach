@@ -6,6 +6,8 @@ function guardarDatosEnTabla() {
         Logger.log("❌ Error: No se encontró la hoja 'Registro de transacciones'");
         return;
     }
+    SpreadsheetApp.flush(); // 🛑 Forzar la actualización de valores antes de leerlos
+
 
     var datos = hojaFormulario.getRange("B3:H21").getValues();
 
@@ -179,13 +181,13 @@ function onEdit(e) {
             var ss = SpreadsheetApp.getActiveSpreadsheet();
             var nombreMes = hoja.getName();
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
-
+        ///// variables que van a cobros
             var paciente = hoja.getRange(fila, 2).getValue(); // Columna PACIENTE
             var fecha = hoja.getRange(fila, 1).getValue(); // Columna FECHA
             var importe = hoja.getRange(fila, 11).getValue(); // Columna IMPORTE ACEPTADO
             var observaciones = hoja.getRange(fila, 15).getValue(); // Columna OBSERVACIONES
 
-            agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, observaciones);
+            agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, "Pendiente", observaciones);
         }
 
         // Actualizar formato de la fila
