@@ -6,7 +6,7 @@ function guardarDatosEnTabla() {
         Logger.log("❌ Error: No se encontró la hoja 'Registro de transacciones'");
         return;
     }
-    SpreadsheetApp.flush(); // 🛑 Forzar la actualización de valores antes de leerlos
+    // SpreadsheetApp.flush(); // 🛑 Forzar la actualización de valores antes de leerlos
 
 
     var datos = hojaFormulario.getRange("B3:H21").getValues();
@@ -39,6 +39,8 @@ function guardarDatosEnTabla() {
 
     // Aplicar formatos y validaciones
     actualizarFormatoFila(hojaMes, filaEscribir, datos[14][4]);
+    hojaMes.getRange(filaEscribir, 10).setNumberFormat("€#,##0.00");
+    hojaMes.getRange(filaEscribir, 12).setNumberFormat("€#,##0.00");
 
     if (datos[14][4] === "Aceptado") {
         agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[18][0]);
@@ -82,6 +84,9 @@ function actualizarFormatoFila(hoja, fila, estado) {
 function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor) {
     var filaEscribir = hojaCobros.getLastRow() < 4 ? 5 : hojaCobros.getLastRow() + 1;
     hojaCobros.getRange(filaEscribir, 1, 1, 6).setValues([[fecha, paciente, doctor, importe, "X", "Y"]]);
+    // Aplicar formato de moneda en euros a la columna IMPORTE COBRADO (columna 4)
+    hojaCobros.getRange(filaEscribir, 4).setNumberFormat("€#,##0.00");
+
 }
 
 function limpiarFormulario(hoja) {
@@ -196,3 +201,4 @@ function onEdit(e) {
         actualizarTablaResumen(hoja);
     }
 }
+
