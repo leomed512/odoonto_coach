@@ -64,7 +64,7 @@ function crearHojaCobros(ss, nombreMes) {
     var hojaCobros = ss.insertSheet("Cobros " + nombreMes);
     
     // Tabla principal de cobros
-    var encabezados = ["FECHA DE COBRO", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "TIPO DE PAGO", "ESTADO DEL COBRO"];
+    var encabezados = ["FECHA DE COBRO", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "TIPO DE PAGO", "ESTADO DEL COBRO", "TOTAL PAGADO", "FECHA FINAL"];
     hojaCobros.getRange(4, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold")
         .setBackground("#424242")
@@ -73,7 +73,7 @@ function crearHojaCobros(ss, nombreMes) {
     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
     
     // Nueva tabla de resumen
-    var encabezadosResumen = ["TIPO DE PAGO", "N° PACIENTES", "MONTO"];
+    var encabezadosResumen = ["TIPO DE PAGO", "N° PACIENTES", "TOTAL / TIPO"];
     hojaCobros.getRange(4, 10, 1, 3).setValues([encabezadosResumen])
         .setFontWeight("bold")
         .setBackground("#424242")
@@ -114,14 +114,14 @@ function crearHojaCobros(ss, nombreMes) {
         .setFontColor("white");
     
     // Fórmula para total de pacientes
-    hojaCobros.getRange(filaTotales, 11).setFormula("=SUM(I5:I8)")
+    hojaCobros.getRange(filaTotales, 11).setFormula("=SUM(K5:K8)")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white")
         .setHorizontalAlignment("center");
     
     // Fórmula para total de montos
-    hojaCobros.getRange(filaTotales, 12).setFormula("=SUM(J5:J8)")
+    hojaCobros.getRange(filaTotales, 12).setFormula("=SUM(L5:L8)")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white")
@@ -166,10 +166,11 @@ function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor
     var filaEscribir = ultimaFila === 4 ? 5 : ultimaFila + 1;
     
     // Insertar los nuevos datos
-    hojaCobros.getRange(filaEscribir, 1, 1, 6).setValues([[fecha, paciente, doctor, importe, "", "Y"]]);
+    hojaCobros.getRange(filaEscribir, 1, 1, 8).setValues([[fecha, paciente, doctor, importe, "", "", "", ""]]);
     
-    // Aplicar formato de moneda en euros a la columna IMPORTE TOTAL (columna 4)
+    // Aplicar formato de moneda en euros a la columna IMPORTE TOTAL (columna 4 Y 7)
     hojaCobros.getRange(filaEscribir, 4).setNumberFormat("€#,##0.00");
+    hojaCobros.getRange(filaEscribir, 7).setNumberFormat("€#,##0.00");
     
     // Definir la regla de validación
     var opcionesMetodoPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
@@ -294,3 +295,4 @@ function onEdit(e) {
         actualizarTablaResumen(hoja);
     }
 }
+
