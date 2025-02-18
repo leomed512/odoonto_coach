@@ -3,7 +3,7 @@ function guardarDatosEnTabla() {
     var hojaFormulario = ss.getSheetByName("Registro de transacciones");
 
     if (!hojaFormulario) {
-        Logger.log("❌ Error: No se encontró la hoja 'Registro de transacciones'");
+        Logger.log("Error: No se encontró la hoja 'Registro de transacciones'");
         return;
     }
     // SpreadsheetApp.flush(); // 🛑 Forzar la actualización de valores antes de leerlos
@@ -43,11 +43,11 @@ function guardarDatosEnTabla() {
     hojaMes.getRange(filaEscribir, 12).setNumberFormat("€#,##0.00");
 
     if (datos[14][4] === "Aceptado") {
-        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[18][0]);
+        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[9][0]);
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
-    Logger.log("✅ Datos guardados en '" + nombreMes + "' correctamente.");
+    Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
 
@@ -153,11 +153,10 @@ function actualizarFormatoFila(hoja, fila, estado) {
 
 
 function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor) {
-    // Modificamos la lógica para obtener la última fila solo de la tabla principal de cobros
     var ultimaFila = 4; // Empezamos desde la fila de encabezados
     var datos = hojaCobros.getRange("A5:A").getValues();
     
-    // Buscamos la última fila con datos en la columna A
+    // la última fila con datos en la columna A
     for (var i = 0; i < datos.length; i++) {
         if (datos[i][0] !== "") {
             ultimaFila = i + 5; // Sumamos 5 porque empezamos desde A5
@@ -282,7 +281,7 @@ function onEdit(e) {
             var paciente = hoja.getRange(fila, 2).getValue(); // Columna PACIENTE
             var fecha = hoja.getRange(fila, 1).getValue(); // Columna FECHA
             var doctor = hoja.getRange(fila, 4).getValue(); // Columna DOCTOR 
-            var importe = hoja.getRange(fila, 11).getValue(); // Columna IMPORTE ACEPTADO
+            var importe = hoja.getRange(fila, 12).getValue(); // Columna IMPORTE ACEPTADO
 
             agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor);
 
@@ -295,3 +294,5 @@ function onEdit(e) {
         actualizarTablaResumen(hoja);
     }
 }
+
+
