@@ -53,7 +53,7 @@ function guardarDatosEnTabla2() {
     hojaMes.getRange(filaEscribir, 11).setNumberFormat("€#,##0.00"); // Ajustado porque N° PTOS fue eliminado
 
     if (datos[14][2] === "Aceptado") {
-        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][1], datos[9][0]);
+        agregarAPacientesAceptados(hojaCobros, datos[0][1], datos[14][3], datos[14][1], datos[9][0]);
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
@@ -130,7 +130,7 @@ function crearHojaCobros(ss, nombreMes) {
             .setHorizontalAlignment("center");
         
         // Fórmula para sumar montos
-        var formulaSuma = `=SUMIF(E:E,"${tipo}",D:D)`;
+        var formulaSuma = `=SUMIF(E:E,"${tipo}",G:G)`;
         hojaCobros.getRange(fila, 12).setFormula(formulaSuma)
             .setBackground("#f6f6f6")
             .setHorizontalAlignment("right")
@@ -171,7 +171,6 @@ function crearHojaCobros(ss, nombreMes) {
         .setBackground("#999999");
 
     // Fórmula para total cobrado condicionalmente de la columna "TOTAL PAGADO"
-    // hojaCobros.getRange(filaTotalCobrado, 12).setFormula("=SUMIF(F:F, \"PAGADO\", G:G)")
     hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUM(G:G)') 
         .setFontWeight("bold")
         .setBackground("#999999")
@@ -224,10 +223,9 @@ function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor
     hojaCobros.getRange(filaEscribir, 4).setNumberFormat("€#,##0.00");
     hojaCobros.getRange(filaEscribir, 7).setNumberFormat("€#,##0.00");
 
-    var formulaEstadoCobro = `=IF(OR(E${filaEscribir}="Pronto pago", E${filaEscribir}="Según TTO"), "PAGADO", 
-                                  IF(OR(E${filaEscribir}="FINANC", E${filaEscribir}="70/30 o 50/50"), 
-                                     IF(G${filaEscribir}=D${filaEscribir}, "PAGADO", "EN PROCESO"),
-                                  ""))`;
+    var formulaEstadoCobro = `=IF(G${filaEscribir} < D${filaEscribir}, "Pendiente de pago", 
+                              IF(G${filaEscribir} = D${filaEscribir}, "PAGADO", ""))`;
+
                                   
     hojaCobros.getRange(filaEscribir, 6).setFormula(formulaEstadoCobro);
     
@@ -327,7 +325,7 @@ function onEdit(e) {
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
 
             var paciente = hoja.getRange(fila, 2).getValue();
-            var fecha = hoja.getRange(fila, 1).getValue();
+            var fecha = new Date();
             var doctor = hoja.getRange(fila, 4).getValue();
             var importe = hoja.getRange(fila, 11).getValue(); 
 
