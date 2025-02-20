@@ -180,7 +180,7 @@ function crearHojaCobros(ss, nombreMes) {
     
     // Agregar totales
     var filaTotales = 5 + tiposPago.length;
-    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL")
+    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL PREVISTO")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white");
@@ -236,13 +236,14 @@ function actualizarFormatoFila(hoja, fila, estado) {
     var rangoFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn());
     var colores = { 
         "Aceptado": "#54c772", 
-        "Pendiente": "#FF9D23", 
+        "Pendiente sin cita": "#FF9D23",
+        "Pendiente con cita": "#f7f73e", 
         "No aceptado": "#fc4c3d" 
     };
     rangoFila.setBackground(colores[estado] || null);
 
     var reglaValidacion = SpreadsheetApp.newDataValidation()
-        .requireValueInList(["Aceptado", "Pendiente", "No aceptado"], true)
+        .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
         .setAllowInvalid(false)
         .build();
     hoja.getRange(fila, 9).setDataValidation(reglaValidacion);
@@ -364,7 +365,7 @@ function onEdit(e) {
 
         var estadoAnterior = e.oldValue;
 
-        if ((estadoAnterior === "Pendiente" || estadoAnterior === "No aceptado") && estadoNuevo === "Aceptado") {
+        if ((estadoAnterior === "Pendiente con cita" || estadoAnterior === "No aceptado" || estadoAnterior === "Pendiente sin cita") && estadoNuevo === "Aceptado") {
             var ss = SpreadsheetApp.getActiveSpreadsheet();
             var nombreMes = hoja.getName();
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
