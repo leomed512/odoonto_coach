@@ -1,4 +1,4 @@
-function guardarDatosEnTabla() {
+function guardarDatosEnTabla2() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaFormulario = ss.getSheetByName("Registro de transacciones");
 
@@ -6,8 +6,6 @@ function guardarDatosEnTabla() {
         Logger.log("Error: No se encontró la hoja 'Registro de transacciones'");
         return;
     }
-    // SpreadsheetApp.flush(); // 🛑 Forzar la actualización de valores antes de leerlos
-
 
     var datos = hojaFormulario.getRange("B3:H21").getValues();
 
@@ -32,18 +30,30 @@ function guardarDatosEnTabla() {
     var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
 
     var nuevaFila = [
-        fechaIngresada, datos[0][1], datos[4][1], datos[9][0], datos[9][1], datos[9][2], datos[9][3], datos[9][4], datos[14][4], 
-        datos[14][0], datos[14][1], datos[14][2], datos[14][3], datos[9][5], datos[18][0]
+        fechaIngresada,    // FECHA DE CONTACTO
+        datos[0][1],       // PACIENTE
+        datos[4][1],       // TELÉFONO
+        datos[9][0],       // DOCTOR/A
+        datos[9][1],       // AUXILIAR
+        datos[9][2],       // TIPOLOGÍA PV
+        datos[9][3],       // SUBTIPOLOGÍA
+        datos[9][4],       // PLAN DE CITAS (Antes era Campaña)
+        datos[14][2],      // ESTADO (Antes estaba en datos[14][4])
+        datos[14][0],      // IMPORTE PRESUPUESTADO
+        datos[14][1],      // IMPORTE ACEPTADO (Antes en datos[14][1], se movió)
+        datos[14][3],      // FECHA DE INICIO (Antes en datos[14][3], posición ajustada)
+        datos[18][0]       // OBSERVACIONES
     ];
+    
     hojaMes.getRange(filaEscribir, 1, 1, nuevaFila.length).setValues([nuevaFila]);
 
     // Aplicar formatos y validaciones
-    actualizarFormatoFila(hojaMes, filaEscribir, datos[14][4]);
+    actualizarFormatoFila(hojaMes, filaEscribir, datos[14][2]);
     hojaMes.getRange(filaEscribir, 10).setNumberFormat("€#,##0.00");
-    hojaMes.getRange(filaEscribir, 12).setNumberFormat("€#,##0.00");
+    hojaMes.getRange(filaEscribir, 11).setNumberFormat("€#,##0.00"); // Ajustado porque N° PTOS fue eliminado
 
-    if (datos[14][4] === "Aceptado") {
-        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][2], datos[9][0]);
+    if (datos[14][2] === "Aceptado") {
+        agregarAPacientesAceptados(hojaCobros, datos[0][1], fechaIngresada, datos[14][1], datos[9][0]);
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
@@ -53,12 +63,19 @@ function guardarDatosEnTabla() {
 
 function crearHojaMes(ss, nombreMes) {
     var hojaMes = ss.insertSheet(nombreMes);
-    var encabezados = ["FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "CAMPAÑA", "ESTADO", "IMPORTE PRESUPUESTADO", "N° PTOS", "IMPORTE ACEPTADO", "FECHA DE INICIO", "PLAN DE CITAS", "OBSERVACIONES"];
-    hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados]).setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+    var encabezados = [
+        "FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA",
+        "PLAN DE CITAS", "ESTADO", "IMPORTE PRESUPUESTADO", "IMPORTE ACEPTADO", "FECHA DE INICIO", "OBSERVACIONES"
+    ];
+
+    hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
     hojaMes.getRange(17, 1, 1, encabezados.length).createFilter();
     hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
     return hojaMes;
 }
+
+
 
 function crearHojaCobros(ss, nombreMes) {
     var hojaCobros = ss.insertSheet("Cobros " + nombreMes);
@@ -73,7 +90,7 @@ function crearHojaCobros(ss, nombreMes) {
     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
 
     //////////////////////////
-    var fechaActual = new Date();
+    // var fechaActual = new Date();
     var titulo = "Caja de " + nombreMes ;
     hojaCobros.getRange(1, 1).setValue(titulo)
         .setFontWeight("bold")
@@ -122,7 +139,7 @@ function crearHojaCobros(ss, nombreMes) {
     
     // Agregar totales
     var filaTotales = 5 + tiposPago.length;
-    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL PREVISTO")
+    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white");
@@ -154,6 +171,7 @@ function crearHojaCobros(ss, nombreMes) {
         .setBackground("#999999");
 
     // Fórmula para total cobrado condicionalmente de la columna "TOTAL PAGADO"
+    // hojaCobros.getRange(filaTotalCobrado, 12).setFormula("=SUMIF(F:F, \"PAGADO\", G:G)")
     hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUM(G:G)') 
         .setFontWeight("bold")
         .setBackground("#999999")
@@ -173,6 +191,7 @@ function crearHojaCobros(ss, nombreMes) {
     
     return hojaCobros;
 }
+
 function actualizarFormatoFila(hoja, fila, estado) {
     var rangoFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn());
     var colores = { "Aceptado": "#54c772", "Pendiente": "#FF9D23", "No aceptado": "#fc4c3d" };
@@ -185,15 +204,14 @@ function actualizarFormatoFila(hoja, fila, estado) {
     hoja.getRange(fila, 9).setDataValidation(reglaValidacion);
 }
 
-
 function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor) {
-    var ultimaFila = 4; // Empezamos desde la fila de encabezados
+    var ultimaFila = 4; // Empieza desde la fila de encabezados
     var datos = hojaCobros.getRange("A5:A").getValues();
     
     // la última fila con datos en la columna A
     for (var i = 0; i < datos.length; i++) {
         if (datos[i][0] !== "") {
-            ultimaFila = i + 5; // Sumamos 5 porque empezamos desde A5
+            ultimaFila = i + 5; // Sumamr 5 porque empieza desde A5
         }
     }
     
@@ -228,14 +246,15 @@ function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor
 
 }
 
+
 function limpiarFormulario(hoja) {
     var celdas = ["C3", "C5", "C7","B12", "C12", "D12", "E12", "F12", "G12", "B17", "C17", "D17", "E17", "F17", "B21"];
     celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
-
+//////////////
 
 function actualizarTablaResumen(hojaMes) {
-    // Verificar si la tabla ya existe en la hoja
+   // Verificar si la tabla ya existe en la hoja
     var celdaCheck = hojaMes.getRange("C4").getValue();
     var tablaExiste = celdaCheck && celdaCheck.toString().trim().toUpperCase().includes("TOTAL PRESUPUESTADO");
 
@@ -267,12 +286,9 @@ function actualizarTablaResumen(hojaMes) {
             if (item.length === 4) celda.setFontColor(item[3]);
         });
     }
-
-    // Fila de inicio para los datos
     var filaInicio = 18;
     var ultimaFila = hojaMes.getLastRow();
 
-    // Definir las fórmulas para cada celda de resumen
     var rangoTotalPresupuestado = hojaMes.getRange(4, 3);
     var rangoTotalAceptado = hojaMes.getRange(5, 3);
     var rangoTotalCobrado = hojaMes.getRange(6, 3);
@@ -280,15 +296,13 @@ function actualizarTablaResumen(hojaMes) {
     var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
     var rangoPacientesAceptados = hojaMes.getRange(5, 4);
 
-    // Insertar las fórmulas en las celdas correspondientes
     rangoTotalPresupuestado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "<>No aceptado", J${filaInicio}:J${ultimaFila})`);
-    rangoTotalAceptado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "Aceptado", L${filaInicio}:L${ultimaFila})`);
+    rangoTotalAceptado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "Aceptado", K${filaInicio}:K${ultimaFila})`);
     rangoTotalCobrado.setFormula(`=SUM('Cobros ${hojaMes.getName()}'!G:G)`);
     rangoPtoMedio.setFormula(`=IF(COUNTA(J${filaInicio}:J${ultimaFila})>0, C4/COUNTA(J${filaInicio}:J${ultimaFila}), 0)`);
     rangoPacientesPresupuestados.setFormula(`=COUNTIF(I${filaInicio}:I${ultimaFila}, "<>No aceptado")`);
     rangoPacientesAceptados.setFormula(`=COUNTIF(I${filaInicio}:I${ultimaFila}, "Aceptado")`);
 
-    // Aplicar formato numérico de moneda en euros (€)
     [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio].forEach(celda => {
         celda.setNumberFormat("€#,##0.00");
     });
@@ -296,45 +310,31 @@ function actualizarTablaResumen(hojaMes) {
     hojaMes.autoResizeColumns(2, 4);
 }
 
-
-// Actualizar valores de calculo en parrilla por mes, el color de la fila y agregar a hoja de cobro si cambia a aceptado
-
-
 function onEdit(e) {
     var hoja = e.source.getActiveSheet();
     var rango = e.range;
 
-    // Verificar si la edición se hizo en la columna 9 ("Estado") y no en la tabla de cobros
     if (rango.getColumn() === 9 && !hoja.getName().startsWith("Cobros")) {
         var estadoNuevo = rango.getValue();
         var fila = rango.getRow();
-
-        // Verificar que no sea una celda de encabezado
         if (fila < 18) return;
 
-        // Obtener el estado anterior antes del cambio
         var estadoAnterior = e.oldValue;
 
-        // Si el estado anterior era "Pendiente" y el nuevo estado es "Aceptado", agregar a Cobros
-        if (estadoAnterior === "Pendiente" || estadoAnterior === "No Aceptado"  && estadoNuevo === "Aceptado") {
+        if ((estadoAnterior === "Pendiente" || estadoAnterior === "No Aceptado") && estadoNuevo === "Aceptado") {
             var ss = SpreadsheetApp.getActiveSpreadsheet();
             var nombreMes = hoja.getName();
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
-        ///// variables que van a cobros
-            var paciente = hoja.getRange(fila, 2).getValue(); // Columna PACIENTE
-            var fecha = hoja.getRange(fila, 1).getValue(); // Columna FECHA
-            var doctor = hoja.getRange(fila, 4).getValue(); // Columna DOCTOR 
-            var importe = hoja.getRange(fila, 12).getValue(); // Columna IMPORTE ACEPTADO
+
+            var paciente = hoja.getRange(fila, 2).getValue();
+            var fecha = hoja.getRange(fila, 1).getValue();
+            var doctor = hoja.getRange(fila, 4).getValue();
+            var importe = hoja.getRange(fila, 11).getValue(); 
 
             agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor);
-
         }
 
-        // Actualizar formato de la fila
         actualizarFormatoFila(hoja, fila, estadoNuevo);
-
-        // ✅ Aplicar validación de fecha SOLO en la celda correspondiente
-            hojaCobros.getRange(filaCobros, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
     }
 }
 
