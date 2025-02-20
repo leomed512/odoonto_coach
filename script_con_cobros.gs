@@ -122,7 +122,7 @@ function crearHojaCobros(ss, nombreMes) {
     
     // Agregar totales
     var filaTotales = 5 + tiposPago.length;
-    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL")
+    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL PREVISTO")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white");
@@ -154,8 +154,7 @@ function crearHojaCobros(ss, nombreMes) {
         .setBackground("#999999");
 
     // Fórmula para total cobrado condicionalmente de la columna "TOTAL PAGADO"
-    // hojaCobros.getRange(filaTotalCobrado, 12).setFormula("=SUMIF(F:F, \"PAGADO\", G:G)")
-    hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUMIF(F:F, "PAGADO", G:G) + SUMIF(E:E, {"Pronto pago", "Según TTO"}, D:D)') 
+    hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUM(G:G)') 
         .setFontWeight("bold")
         .setBackground("#999999")
         .setFontColor("black")
@@ -236,8 +235,6 @@ function limpiarFormulario(hoja) {
 
 
 function actualizarTablaResumen(hojaMes) {
-    var totalPresupuestado = 0, totalAceptado = 0, pacientesAceptados = 0, totalPacientes = 0;
-
     // Verificar si la tabla ya existe en la hoja
     var celdaCheck = hojaMes.getRange("C4").getValue();
     var tablaExiste = celdaCheck && celdaCheck.toString().trim().toUpperCase().includes("TOTAL PRESUPUESTADO");
@@ -271,35 +268,34 @@ function actualizarTablaResumen(hojaMes) {
         });
     }
 
-    // Obtener los datos de la tabla desde la fila 18 en adelante
-    var datosCompletos = hojaMes.getRange("A18:Z" + hojaMes.getLastRow()).getValues();
+    // Fila de inicio para los datos
+    var filaInicio = 18;
+    var ultimaFila = hojaMes.getLastRow();
 
-    datosCompletos.forEach(fila => {
-        var estado = fila[8] ? fila[8].toString().trim().toLowerCase() : "";
-        var importePresupuestado = parseFloat(fila[9]) || 0;
-        var importeAceptado = parseFloat(fila[11]) || 0;
+    // Definir las fórmulas para cada celda de resumen
+    var rangoTotalPresupuestado = hojaMes.getRange(4, 3);
+    var rangoTotalAceptado = hojaMes.getRange(5, 3);
+    var rangoTotalCobrado = hojaMes.getRange(6, 3);
+    var rangoPtoMedio = hojaMes.getRange(7, 3);
+    var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
+    var rangoPacientesAceptados = hojaMes.getRange(5, 4);
 
-        if (estado === "aceptado") pacientesAceptados++;
-        if (importePresupuestado > 0) {
-            totalPacientes++;
-            totalPresupuestado += importePresupuestado;
-        }
-        if (estado === "aceptado") totalAceptado += importeAceptado;
+    // Insertar las fórmulas en las celdas correspondientes
+    rangoTotalPresupuestado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "<>No aceptado", J${filaInicio}:J${ultimaFila})`);
+    rangoTotalAceptado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "Aceptado", L${filaInicio}:L${ultimaFila})`);
+    rangoTotalCobrado.setFormula(`=SUM('Cobros ${hojaMes.getName()}'!G:G)`);
+    rangoPtoMedio.setFormula(`=IF(COUNTA(J${filaInicio}:J${ultimaFila})>0, C4/COUNTA(J${filaInicio}:J${ultimaFila}), 0)`);
+    rangoPacientesPresupuestados.setFormula(`=COUNTIF(I${filaInicio}:I${ultimaFila}, "<>No aceptado")`);
+    rangoPacientesAceptados.setFormula(`=COUNTIF(I${filaInicio}:I${ultimaFila}, "Aceptado")`);
+
+    // Aplicar formato numérico de moneda en euros (€)
+    [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio].forEach(celda => {
+        celda.setNumberFormat("€#,##0.00");
     });
 
-    var pto_medio = totalPacientes > 0 ? totalPresupuestado / totalPacientes : 0;
-
-    // Actualizar todos los valores en una sola llamada
-    var valoresResumen = [
-        [totalPresupuestado.toFixed(2) + " €", totalPacientes],
-        [totalAceptado.toFixed(2) + " €", pacientesAceptados],
-        ["", ""], 
-        [pto_medio.toFixed(2) + " €", ""]
-    ];
-    hojaMes.getRange(4, 3, valoresResumen.length, 2).setValues(valoresResumen);
-    hojaMes.autoResizeColumns(2, 4); 
-
+    hojaMes.autoResizeColumns(2, 4);
 }
+
 
 // Actualizar valores de calculo en parrilla por mes, el color de la fila y agregar a hoja de cobro si cambia a aceptado
 
@@ -337,8 +333,6 @@ function onEdit(e) {
         // Actualizar formato de la fila
         actualizarFormatoFila(hoja, fila, estadoNuevo);
 
-        // Llamar a actualizarTablaResumen
-        actualizarTablaResumen(hoja);
         // ✅ Aplicar validación de fecha SOLO en la celda correspondiente
             hojaCobros.getRange(filaCobros, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
     }
