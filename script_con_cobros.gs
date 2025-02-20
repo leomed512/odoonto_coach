@@ -26,6 +26,11 @@ function guardarDatosEnTabla2() {
 
     var hojaMes = ss.getSheetByName(nombreMes) || crearHojaMes(ss, nombreMes);
     var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
+    //////////////previsiones
+    var hojaPrevisiones = ss.getSheetByName("Staging Previsiones");
+    if (!hojaPrevisiones) {
+        hojaPrevisiones = crearHojaPrevisiones(ss);
+    }
 
     var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
 
@@ -54,12 +59,48 @@ function guardarDatosEnTabla2() {
 
     if (datos[14][2] === "Aceptado") {
         agregarAPacientesAceptados(hojaCobros, datos[0][1], datos[14][3], datos[14][1], datos[9][0]);
+        ////////////////////previsiones
+        agregarAStagingPrevisiones(hojaPrevisiones, datos[14][3], datos[0][1], datos[9][0], datos[14][1]);
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
     Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
+
+////////////////previsiones
+function crearHojaPrevisiones(ss) {
+    var hojaPrevisiones = ss.insertSheet("Staging Previsiones");
+    var encabezados = ["FECHA ACTUAL", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO"];
+
+    hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+    hojaPrevisiones.autoResizeColumns(1, hojaPrevisiones.getLastColumn());
+    return hojaPrevisiones;
+}
+
+function agregarAStagingPrevisiones(hojaPrevisiones, fechaInicio, paciente, doctor, importeAceptado) {
+    var ultimaFila = hojaPrevisiones.getLastRow() + 1;
+    var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+
+    var nuevaFila = [
+        fechaInicio,
+        paciente,
+        doctor,
+        importeAceptado,
+        "",  // Columna ABONO vacía por defecto
+        `=IF(ISBLANK(E${ultimaFila}), D${ultimaFila}, D${ultimaFila}-E${ultimaFila})`,
+        "",
+        ""
+    ];
+
+    hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
+    hojaPrevisiones.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00"); // Formato de moneda para ABONO
+    hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00"); // Formato de moneda para SALDO PENDIENTE
+    hojaPrevisiones.getRange(ultimaFila, 7).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build());
+    hojaPrevisiones.getRange(ultimaFila, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
+}
+
 
 function crearHojaMes(ss, nombreMes) {
     var hojaMes = ss.insertSheet(nombreMes);
@@ -193,7 +234,11 @@ function crearHojaCobros(ss, nombreMes) {
 
 function actualizarFormatoFila(hoja, fila, estado) {
     var rangoFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn());
-    var colores = { "Aceptado": "#54c772", "Pendiente": "#FF9D23", "No aceptado": "#fc4c3d" };
+    var colores = { 
+        "Aceptado": "#54c772", 
+        "Pendiente": "#FF9D23", 
+        "No aceptado": "#fc4c3d" 
+    };
     rangoFila.setBackground(colores[estado] || null);
 
     var reglaValidacion = SpreadsheetApp.newDataValidation()
@@ -319,10 +364,12 @@ function onEdit(e) {
 
         var estadoAnterior = e.oldValue;
 
-        if ((estadoAnterior === "Pendiente" || estadoAnterior === "No Aceptado") && estadoNuevo === "Aceptado") {
+        if ((estadoAnterior === "Pendiente" || estadoAnterior === "No aceptado") && estadoNuevo === "Aceptado") {
             var ss = SpreadsheetApp.getActiveSpreadsheet();
             var nombreMes = hoja.getName();
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
+            // Obtener la hoja de previsiones
+            var hojaPrevisiones = ss.getSheetByName("Staging Previsiones") || crearHojaPrevisiones(ss);
 
             var paciente = hoja.getRange(fila, 2).getValue();
             var fecha = new Date();
@@ -330,9 +377,9 @@ function onEdit(e) {
             var importe = hoja.getRange(fila, 11).getValue(); 
 
             agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor);
+            agregarAStagingPrevisiones(hojaPrevisiones, fecha, paciente, doctor, importe);
         }
 
         actualizarFormatoFila(hoja, fila, estadoNuevo);
     }
 }
-
