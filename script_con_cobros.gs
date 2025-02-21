@@ -1,3 +1,20 @@
+// Función para mantener el contador secuencial
+function getNextTransactionNumber() {
+  const properties = PropertiesService.getScriptProperties();
+  let currentNumber = parseInt(properties.getProperty('LAST_TRANSACTION_NUMBER') || '0');
+  currentNumber++;
+  properties.setProperty('LAST_TRANSACTION_NUMBER', currentNumber.toString());
+  return currentNumber.toString().padStart(6, '0');
+}
+
+// Generador de ID secuencial
+function generateSequentialTransactionId() {
+  const year = new Date().getFullYear().toString().slice(-2);
+  const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+  const sequence = getNextTransactionNumber();
+  return `${year}${month}${sequence}`;
+}
+
 function guardarDatosEnTabla2() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaFormulario = ss.getSheetByName("Registro de transacciones");
@@ -20,13 +37,15 @@ function guardarDatosEnTabla2() {
         return;
     }
 
+    // Generar ID de transacción
+    const transactionId = generateSequentialTransactionId();
+
     var fecha = new Date(fechaIngresada);
     var nombreMes = fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long" });
     nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
 
     var hojaMes = ss.getSheetByName(nombreMes) || crearHojaMes(ss, nombreMes);
     var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
-    //////////////previsiones
     var hojaPrevisiones = ss.getSheetByName("Staging Previsiones");
     if (!hojaPrevisiones) {
         hojaPrevisiones = crearHojaPrevisiones(ss);
@@ -35,6 +54,7 @@ function guardarDatosEnTabla2() {
     var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
 
     var nuevaFila = [
+        transactionId,     // ID Transacción
         fechaIngresada,    // FECHA DE CONTACTO
         datos[0][1],       // PACIENTE
         datos[4][1],       // TELÉFONO
@@ -42,71 +62,117 @@ function guardarDatosEnTabla2() {
         datos[9][1],       // AUXILIAR
         datos[9][2],       // TIPOLOGÍA PV
         datos[9][3],       // SUBTIPOLOGÍA
-        datos[9][4],       // PLAN DE CITAS (Antes era Campaña)
-        datos[14][2],      // ESTADO (Antes estaba en datos[14][4])
+        datos[9][4],       // PLAN DE CITAS
+        datos[14][2],      // ESTADO
         datos[14][0],      // IMPORTE PRESUPUESTADO
-        datos[14][1],      // IMPORTE ACEPTADO (Antes en datos[14][1], se movió)
-        datos[14][3],      // FECHA DE INICIO (Antes en datos[14][3], posición ajustada)
+        datos[14][1],      // IMPORTE ACEPTADO
+        datos[14][3],      // FECHA DE INICIO
         datos[18][0]       // OBSERVACIONES
     ];
     
     hojaMes.getRange(filaEscribir, 1, 1, nuevaFila.length).setValues([nuevaFila]);
 
-    // Aplicar formatos y validaciones
     actualizarFormatoFila(hojaMes, filaEscribir, datos[14][2]);
-    hojaMes.getRange(filaEscribir, 10).setNumberFormat("€#,##0.00");
-    hojaMes.getRange(filaEscribir, 11).setNumberFormat("€#,##0.00"); // Ajustado porque N° PTOS fue eliminado
+    hojaMes.getRange(filaEscribir, 11).setNumberFormat("€#,##0.00");
+    hojaMes.getRange(filaEscribir, 12).setNumberFormat("€#,##0.00");
 
     if (datos[14][2] === "Aceptado") {
-        agregarAPacientesAceptados(hojaCobros, datos[0][1], datos[14][3], datos[14][1], datos[9][0]);
-        ////////////////////previsiones
-        agregarAStagingPrevisiones(hojaPrevisiones, datos[14][3], datos[0][1], datos[9][0], datos[14][1]);
+        agregarAPacientesAceptados(hojaCobros, transactionId, datos[0][1], datos[14][3], datos[14][1], datos[9][0]);
+        agregarAStagingPrevisiones(hojaPrevisiones, transactionId, datos[14][3], datos[0][1], datos[9][0], datos[14][1]);
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
     Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
-
-////////////////previsiones
+///////PREVISIONES STAGING
 function crearHojaPrevisiones(ss) {
     var hojaPrevisiones = ss.insertSheet("Staging Previsiones");
-    var encabezados = ["FECHA ACTUAL", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO"];
+    var encabezados = [
+        "ID TRANSACCIÓN",  // Nueva columna ID
+        "FECHA ACTUAL", 
+        "PACIENTE", 
+        "DOCTOR", 
+        "IMPORTE TOTAL", 
+        "ABONO", 
+        "SALDO PENDIENTE", 
+        "TIPO DE PAGO", 
+        "PRÓXIMO PAGO"
+    ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
-        .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+        .setFontWeight("bold")
+        .setBackground("#424242")
+        .setFontColor("white")
+        .setHorizontalAlignment("center");
     hojaPrevisiones.autoResizeColumns(1, hojaPrevisiones.getLastColumn());
     return hojaPrevisiones;
 }
+// function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeAceptado) {
+//     var ultimaFila = hojaPrevisiones.getLastRow() + 1;
+//     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
 
-function agregarAStagingPrevisiones(hojaPrevisiones, fechaInicio, paciente, doctor, importeAceptado) {
+//     var nuevaFila = [
+//         transactionId,    // ID Transacción
+//         fechaInicio,
+//         paciente,
+//         doctor,
+//         importeAceptado,
+//         "",  // Columna ABONO vacía por defecto
+//         `=IF(ISBLANK(F${ultimaFila}), E${ultimaFila}, E${ultimaFila}-F${ultimaFila})`,
+//         "",
+//         ""
+//     ];
+
+//     hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
+//     hojaPrevisiones.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00"); // Formato de moneda para IMPORTE TOTAL
+//     hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00"); // Formato de moneda para ABONO
+//     hojaPrevisiones.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00"); // Formato de moneda para SALDO PENDIENTE
+//     hojaPrevisiones.getRange(ultimaFila, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build());
+//     hojaPrevisiones.getRange(ultimaFila, 9).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
+// }
+function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeAceptado) {
+    // Verificar si el ID ya existe
+    if (existeIdEnHoja(hojaPrevisiones, transactionId)) {
+        Logger.log("ID ya existe en Staging Previsiones: " + transactionId);
+        Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
+        return;
+    }
+
     var ultimaFila = hojaPrevisiones.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
 
     var nuevaFila = [
+        transactionId,
         fechaInicio,
         paciente,
         doctor,
         importeAceptado,
-        "",  // Columna ABONO vacía por defecto
-        `=IF(ISBLANK(E${ultimaFila}), D${ultimaFila}, D${ultimaFila}-E${ultimaFila})`,
+        "",
+        `=IF(ISBLANK(F${ultimaFila}), E${ultimaFila}, E${ultimaFila}-F${ultimaFila})`,
         "",
         ""
     ];
 
     hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
-    hojaPrevisiones.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00"); // Formato de moneda para ABONO
-    hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00"); // Formato de moneda para SALDO PENDIENTE
-    hojaPrevisiones.getRange(ultimaFila, 7).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build());
-    hojaPrevisiones.getRange(ultimaFila, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
+    
+    // Aplicar formatos
+    hojaPrevisiones.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00");
+    hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00");
+    hojaPrevisiones.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00");
+    hojaPrevisiones.getRange(ultimaFila, 8).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build()
+    );
+    hojaPrevisiones.getRange(ultimaFila, 9).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireDate().build()
+    );
 }
-
-
 function crearHojaMes(ss, nombreMes) {
     var hojaMes = ss.insertSheet(nombreMes);
     var encabezados = [
-        "FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA",
-        "PLAN DE CITAS", "ESTADO", "IMPORTE PRESUPUESTADO", "IMPORTE ACEPTADO", "FECHA DE INICIO", "OBSERVACIONES"
+        "ID TRANSACCIÓN", "FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", 
+        "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "PLAN DE CITAS", "ESTADO", 
+        "IMPORTE PRESUPUESTADO", "IMPORTE ACEPTADO", "FECHA DE INICIO", "OBSERVACIONES"
     ];
 
     hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados])
@@ -116,13 +182,124 @@ function crearHojaMes(ss, nombreMes) {
     return hojaMes;
 }
 
+// function crearHojaCobros(ss, nombreMes) {
+//     var hojaCobros = ss.insertSheet("Cobros " + nombreMes);
+    
+//     // Tabla principal de cobros con nueva columna ID
+//     var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "TIPO DE PAGO", "ESTADO DEL COBRO", "TOTAL PAGADO", "FECHA FINAL"];
+//     hojaCobros.getRange(4, 1, 1, encabezados.length).setValues([encabezados])
+//         .setFontWeight("bold")
+//         .setBackground("#424242")
+//         .setFontColor("white")
+//         .setHorizontalAlignment("center");
+//     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
 
+//    //////////////////////////
+//     // var fechaActual = new Date();
+//     var titulo = "Caja de " + nombreMes ;
+//     hojaCobros.getRange(1, 1).setValue(titulo)
+//         .setFontWeight("bold")
+//         .setFontSize(18);
+    
+//     // Insertar texto en la fila 3, fusionando las celdas E3:H3
+//     hojaCobros.getRange(3, 5, 1, 4).merge().setValue("Modifica manualmente estas columnas")
+//         .setFontSize(10)
+//         .setBackground("#00c896")
+//         .setFontColor("#424242") // Gris plomo oscuro
+//         .setHorizontalAlignment("center");
+    
+//     // Nueva tabla de resumen
+//     var encabezadosResumen = ["TIPO DE PAGO", "N° PACIENTES", "TOTAL / TIPO"];
+//     hojaCobros.getRange(4, 10, 1, 3).setValues([encabezadosResumen])
+//         .setFontWeight("bold")
+//         .setBackground("#424242")
+//         .setFontColor("white")
+//         .setHorizontalAlignment("center");
+    
+//     // Tipos de pago
+//     var tiposPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+    
+//     // Insertar tipos de pago y fórmulas
+//     tiposPago.forEach((tipo, index) => {
+//         var fila = 5 + index;
+        
+//         // Tipo de pago
+//         hojaCobros.getRange(fila, 10).setValue(tipo)
+//             .setBackground("#f6f6f6")
+//             .setHorizontalAlignment("left");
+        
+//         // Fórmula para contar pacientes
+//         var formulaConteo = `=COUNTIFS(E:E,"${tipo}")`;
+//         hojaCobros.getRange(fila, 11).setFormula(formulaConteo)
+//             .setBackground("#e2e2e2")
+//             .setHorizontalAlignment("center");
+        
+//         // Fórmula para sumar montos
+//         var formulaSuma = `=SUMIF(E:E,"${tipo}",G:G)`;
+//         hojaCobros.getRange(fila, 12).setFormula(formulaSuma)
+//             .setBackground("#f6f6f6")
+//             .setHorizontalAlignment("right")
+//             .setNumberFormat("€#,##0.00");
+//     });
+    
+//     // Agregar totales
+//     var filaTotales = 5 + tiposPago.length;
+//     hojaCobros.getRange(filaTotales, 10).setValue("TOTAL PREVISTO")
+//         .setFontWeight("bold")
+//         .setBackground("#424242")
+//         .setFontColor("white");
+    
+//     // Fórmula para total de pacientes
+//     hojaCobros.getRange(filaTotales, 11).setFormula("=SUM(K5:K8)")
+//         .setFontWeight("bold")
+//         .setBackground("#424242")
+//         .setFontColor("white")
+//         .setHorizontalAlignment("center");
+    
+//     // Fórmula para total de montos
+//     hojaCobros.getRange(filaTotales, 12).setFormula("=SUM(L5:L8)")
+//         .setFontWeight("bold")
+//         .setBackground("#424242")
+//         .setFontColor("white")
+//         .setHorizontalAlignment("right")
+//         .setNumberFormat("€#,##0.00");
 
+//          // Agregar fila "TOTAL COBRADO" justo debajo del total
+//     var filaTotalCobrado = filaTotales + 1;
+//     hojaCobros.getRange(filaTotalCobrado, 10).setValue("TOTAL COBRADO")
+//         .setFontWeight("bold")
+//         .setBackground("#999999")
+//         .setFontColor("black");
+
+//     // Dejar la columna del medio vacía
+//     hojaCobros.getRange(filaTotalCobrado, 11).setValue("")
+//         .setBackground("#999999");
+
+//     // Fórmula para total cobrado condicionalmente de la columna "TOTAL PAGADO"
+//     hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUM(G:G)') 
+//         .setFontWeight("bold")
+//         .setBackground("#999999")
+//         .setFontColor("black")
+//         .setHorizontalAlignment("right")
+//         .setNumberFormat("€#,##0.00");
+    
+
+//     // Validación para método de pago
+//     var reglaValidacion_cobro = SpreadsheetApp.newDataValidation()
+//         .requireValueInList(tiposPago, true)
+//         .setAllowInvalid(false)
+//         .build();
+
+//     // Ajustar ancho de columnas
+//     hojaCobros.autoResizeColumns(1, 12);
+    
+//     return hojaCobros;
+// }
 function crearHojaCobros(ss, nombreMes) {
     var hojaCobros = ss.insertSheet("Cobros " + nombreMes);
     
-    // Tabla principal de cobros
-    var encabezados = ["FECHA DE COBRO", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "TIPO DE PAGO", "ESTADO DEL COBRO", "TOTAL PAGADO", "FECHA FINAL"];
+    // Tabla principal de cobros con nueva columna ID
+    var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "IMPORTE TOTAL", "TIPO DE PAGO", "ESTADO DEL COBRO", "TOTAL PAGADO", "FECHA FINAL"];
     hojaCobros.getRange(4, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold")
         .setBackground("#424242")
@@ -130,23 +307,21 @@ function crearHojaCobros(ss, nombreMes) {
         .setHorizontalAlignment("center");
     hojaCobros.getRange(4, 1, 1, encabezados.length).createFilter();
 
-    //////////////////////////
-    // var fechaActual = new Date();
-    var titulo = "Caja de " + nombreMes ;
+    var titulo = "Caja de " + nombreMes;
     hojaCobros.getRange(1, 1).setValue(titulo)
         .setFontWeight("bold")
         .setFontSize(18);
     
-    // Insertar texto en la fila 3, fusionando las celdas E3:H3
+    // Mover el texto "Modifica manualmente estas columnas" dos columnas
     hojaCobros.getRange(3, 5, 1, 4).merge().setValue("Modifica manualmente estas columnas")
         .setFontSize(10)
         .setBackground("#00c896")
-        .setFontColor("#424242") // Gris plomo oscuro
+        .setFontColor("#424242")
         .setHorizontalAlignment("center");
     
-    // Nueva tabla de resumen
+    // Mover la tabla de resumen dos columnas a la derecha (de columna 10 a columna 12)
     var encabezadosResumen = ["TIPO DE PAGO", "N° PACIENTES", "TOTAL / TIPO"];
-    hojaCobros.getRange(4, 10, 1, 3).setValues([encabezadosResumen])
+    hojaCobros.getRange(4, 12, 1, 3).setValues([encabezadosResumen])
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white")
@@ -155,70 +330,69 @@ function crearHojaCobros(ss, nombreMes) {
     // Tipos de pago
     var tiposPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
     
-    // Insertar tipos de pago y fórmulas
+    // Insertar tipos de pago y fórmulas con nuevas posiciones de columna
     tiposPago.forEach((tipo, index) => {
         var fila = 5 + index;
         
-        // Tipo de pago
-        hojaCobros.getRange(fila, 10).setValue(tipo)
+        // Tipo de pago (columna 12 en lugar de 10)
+        hojaCobros.getRange(fila, 12).setValue(tipo)
             .setBackground("#f6f6f6")
             .setHorizontalAlignment("left");
         
-        // Fórmula para contar pacientes
-        var formulaConteo = `=COUNTIFS(E:E,"${tipo}")`;
-        hojaCobros.getRange(fila, 11).setFormula(formulaConteo)
+        // Fórmula para contar pacientes (columna 13 en lugar de 11)
+        var formulaConteo = `=COUNTIFS(F:F,"${tipo}")`;
+        hojaCobros.getRange(fila, 13).setFormula(formulaConteo)
             .setBackground("#e2e2e2")
             .setHorizontalAlignment("center");
         
-        // Fórmula para sumar montos
-        var formulaSuma = `=SUMIF(E:E,"${tipo}",G:G)`;
-        hojaCobros.getRange(fila, 12).setFormula(formulaSuma)
+        // Fórmula para sumar montos (columna 14 en lugar de 12)
+        var formulaSuma = `=SUMIF(F:F,"${tipo}",H:H)`;
+        hojaCobros.getRange(fila, 14).setFormula(formulaSuma)
             .setBackground("#f6f6f6")
             .setHorizontalAlignment("right")
             .setNumberFormat("€#,##0.00");
     });
     
-    // Agregar totales
+    // Agregar totales con nuevas posiciones
     var filaTotales = 5 + tiposPago.length;
-    hojaCobros.getRange(filaTotales, 10).setValue("TOTAL PREVISTO")
+    hojaCobros.getRange(filaTotales, 12).setValue("TOTAL PREVISTO")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white");
     
-    // Fórmula para total de pacientes
-    hojaCobros.getRange(filaTotales, 11).setFormula("=SUM(K5:K8)")
+    // Fórmula para total de pacientes (columna 13)
+    hojaCobros.getRange(filaTotales, 13).setFormula("=SUM(M5:M8)")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white")
         .setHorizontalAlignment("center");
     
-    // Fórmula para total de montos
-    hojaCobros.getRange(filaTotales, 12).setFormula("=SUM(L5:L8)")
+    // Fórmula para total de montos (columna 14)
+    hojaCobros.getRange(filaTotales, 14).setFormula("=SUM(N5:N8)")
         .setFontWeight("bold")
         .setBackground("#424242")
         .setFontColor("white")
         .setHorizontalAlignment("right")
         .setNumberFormat("€#,##0.00");
 
-         // Agregar fila "TOTAL COBRADO" justo debajo del total
+    // Fila "TOTAL COBRADO" con nuevas posiciones
     var filaTotalCobrado = filaTotales + 1;
-    hojaCobros.getRange(filaTotalCobrado, 10).setValue("TOTAL COBRADO")
+    hojaCobros.getRange(filaTotalCobrado, 12).setValue("TOTAL COBRADO")
         .setFontWeight("bold")
         .setBackground("#999999")
         .setFontColor("black");
 
-    // Dejar la columna del medio vacía
-    hojaCobros.getRange(filaTotalCobrado, 11).setValue("")
+    // Columna del medio vacía (columna 13)
+    hojaCobros.getRange(filaTotalCobrado, 13).setValue("")
         .setBackground("#999999");
 
-    // Fórmula para total cobrado condicionalmente de la columna "TOTAL PAGADO"
-    hojaCobros.getRange(filaTotalCobrado, 12).setFormula('=SUM(G:G)') 
+    // Total cobrado con nueva posición (columna 14)
+    hojaCobros.getRange(filaTotalCobrado, 14).setFormula('=SUM(H:H)')
         .setFontWeight("bold")
         .setBackground("#999999")
         .setFontColor("black")
         .setHorizontalAlignment("right")
         .setNumberFormat("€#,##0.00");
-    
 
     // Validación para método de pago
     var reglaValidacion_cobro = SpreadsheetApp.newDataValidation()
@@ -226,8 +400,8 @@ function crearHojaCobros(ss, nombreMes) {
         .setAllowInvalid(false)
         .build();
 
-    // Ajustar ancho de columnas
-    hojaCobros.autoResizeColumns(1, 12);
+    // Ajustar ancho de columnas (ahora hasta la columna 14)
+    hojaCobros.autoResizeColumns(1, 14);
     
     return hojaCobros;
 }
@@ -246,48 +420,48 @@ function actualizarFormatoFila(hoja, fila, estado) {
         .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
         .setAllowInvalid(false)
         .build();
-    hoja.getRange(fila, 9).setDataValidation(reglaValidacion);
+    hoja.getRange(fila, 10).setDataValidation(reglaValidacion);
 }
 
-function agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor) {
-    var ultimaFila = 4; // Empieza desde la fila de encabezados
+function agregarAPacientesAceptados(hojaCobros, transactionId, paciente, fecha, importe, doctor) {
+    // Verificar si el ID ya existe
+    if (existeIdEnHoja(hojaCobros, transactionId)) {
+        Logger.log("ID ya existe en hoja Cobros: " + transactionId);
+        Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
+        return;
+    }
+
+    var ultimaFila = 4;
     var datos = hojaCobros.getRange("A5:A").getValues();
     
-    // la última fila con datos en la columna A
     for (var i = 0; i < datos.length; i++) {
         if (datos[i][0] !== "") {
-            ultimaFila = i + 5; // Sumamr 5 porque empieza desde A5
+            ultimaFila = i + 5;
         }
     }
     
     var filaEscribir = ultimaFila === 4 ? 5 : ultimaFila + 1;
     
-    // Insertar los nuevos datos
-    hojaCobros.getRange(filaEscribir, 1, 1, 8).setValues([[fecha, paciente, doctor, importe, "", "", "", ""]]);
+    hojaCobros.getRange(filaEscribir, 1, 1, 9).setValues([[
+        transactionId, fecha, paciente, doctor, importe, "", "", "", ""
+    ]]);
     
-    // Aplicar formato de moneda en euros a la columna IMPORTE TOTAL (columna 4 Y 7)
-    hojaCobros.getRange(filaEscribir, 4).setNumberFormat("€#,##0.00");
-    hojaCobros.getRange(filaEscribir, 7).setNumberFormat("€#,##0.00");
+    hojaCobros.getRange(filaEscribir, 5).setNumberFormat("€#,##0.00");
+    hojaCobros.getRange(filaEscribir, 8).setNumberFormat("€#,##0.00");
 
-    var formulaEstadoCobro = `=IF(G${filaEscribir} < D${filaEscribir}, "Pendiente de pago", 
-                              IF(G${filaEscribir} = D${filaEscribir}, "PAGADO", ""))`;
-
+    var formulaEstadoCobro = `=IF(H${filaEscribir} < E${filaEscribir}, "Pendiente de pago", 
+                              IF(H${filaEscribir} = E${filaEscribir}, "PAGADO", ""))`;
                                   
-    hojaCobros.getRange(filaEscribir, 6).setFormula(formulaEstadoCobro);
+    hojaCobros.getRange(filaEscribir, 7).setFormula(formulaEstadoCobro);
     
-    // Definir la regla de validación
     var opcionesMetodoPago = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
     var reglaValidacion_cobro = SpreadsheetApp.newDataValidation()
         .requireValueInList(opcionesMetodoPago, true)
         .setAllowInvalid(false)
         .build();
 
-    // Aplicar la validación a la celda de método de pago
-    hojaCobros.getRange(filaEscribir, 5).setDataValidation(reglaValidacion_cobro);
-
-    /////////
-      hojaCobros.getRange(filaEscribir, 8).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
-
+    hojaCobros.getRange(filaEscribir, 6).setDataValidation(reglaValidacion_cobro);
+    hojaCobros.getRange(filaEscribir, 9).setDataValidation(SpreadsheetApp.newDataValidation().requireDate().build());
 }
 
 
@@ -340,12 +514,12 @@ function actualizarTablaResumen(hojaMes) {
     var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
     var rangoPacientesAceptados = hojaMes.getRange(5, 4);
 
-    rangoTotalPresupuestado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "<>No aceptado", J${filaInicio}:J${ultimaFila})`);
-    rangoTotalAceptado.setFormula(`=SUMIF(I${filaInicio}:I${ultimaFila}, "Aceptado", K${filaInicio}:K${ultimaFila})`);
-    rangoTotalCobrado.setFormula(`=SUM('Cobros ${hojaMes.getName()}'!G:G)`);
-    rangoPtoMedio.setFormula(`=IF(COUNTA(J${filaInicio}:J${ultimaFila})>0, C4/COUNTA(J${filaInicio}:J${ultimaFila}), 0)`);
-    rangoPacientesPresupuestados.setFormula(`=COUNTIF(I${filaInicio}:I${ultimaFila}, "<>No aceptado")`);
-    rangoPacientesAceptados.setFormula(`=COUNTIF(I${filaInicio}:I${ultimaFila}, "Aceptado")`);
+    rangoTotalPresupuestado.setFormula(`=SUMIF(J${filaInicio}:J${ultimaFila}, "<>No aceptado", K${filaInicio}:K${ultimaFila})`);
+    rangoTotalAceptado.setFormula(`=SUMIF(J${filaInicio}:J${ultimaFila}, "Aceptado", L${filaInicio}:L${ultimaFila})`);
+    rangoTotalCobrado.setFormula(`=SUM('Cobros ${hojaMes.getName()}'!H:H)`); // Ajustar si es necesario
+    rangoPtoMedio.setFormula(`=IF(COUNTA(K${filaInicio}:K${ultimaFila})>0, C4/COUNTA(K${filaInicio}:K${ultimaFila}), 0)`);
+    rangoPacientesPresupuestados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "<>No aceptado")`);
+    rangoPacientesAceptados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "Aceptado")`);
 
     [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio].forEach(celda => {
         celda.setNumberFormat("€#,##0.00");
@@ -358,7 +532,7 @@ function onEdit(e) {
     var hoja = e.source.getActiveSheet();
     var rango = e.range;
 
-    if (rango.getColumn() === 9 && !hoja.getName().startsWith("Cobros")) {
+    if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros")) {
         var estadoNuevo = rango.getValue();
         var fila = rango.getRow();
         if (fila < 18) return;
@@ -369,18 +543,34 @@ function onEdit(e) {
             var ss = SpreadsheetApp.getActiveSpreadsheet();
             var nombreMes = hoja.getName();
             var hojaCobros = ss.getSheetByName("Cobros " + nombreMes) || crearHojaCobros(ss, nombreMes);
-            // Obtener la hoja de previsiones
             var hojaPrevisiones = ss.getSheetByName("Staging Previsiones") || crearHojaPrevisiones(ss);
 
-            var paciente = hoja.getRange(fila, 2).getValue();
+            // Obtener todos los datos necesarios incluyendo el ID
+            var transactionId = hoja.getRange(fila, 1).getValue(); // ID está en la primera columna
+            var paciente = hoja.getRange(fila, 3).getValue();
             var fecha = new Date();
-            var doctor = hoja.getRange(fila, 4).getValue();
-            var importe = hoja.getRange(fila, 11).getValue(); 
+            var doctor = hoja.getRange(fila, 5).getValue();
+            var importe = hoja.getRange(fila, 12).getValue(); 
 
-            agregarAPacientesAceptados(hojaCobros, paciente, fecha, importe, doctor);
-            agregarAStagingPrevisiones(hojaPrevisiones, fecha, paciente, doctor, importe);
+            // Agregar a Cobros y Previsiones con el ID
+            agregarAPacientesAceptados(hojaCobros, transactionId, paciente, fecha, importe, doctor);
+            agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fecha, paciente, doctor, importe);
         }
 
         actualizarFormatoFila(hoja, fila, estadoNuevo);
     }
+}
+
+
+// Función helper para verificar si ya existe el ID en una hoja
+function existeIdEnHoja(hoja, id) {
+    if (!id) return false;
+    var datos = hoja.getRange("A:A").getValues();
+    var duplicado = datos.some(row => row[0] === id);
+    
+    if (duplicado) {
+        Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
+    }
+    
+    return duplicado;
 }
