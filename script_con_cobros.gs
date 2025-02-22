@@ -718,23 +718,90 @@ function limpiarFormulario(hoja) {
     var celdas = ["C3", "C5", "C7","B12", "C12", "D12", "E12", "F12", "G12", "B17", "C17", "D17", "E17", "F17", "B21"];
     celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
-
-//vista previsiones
-function obtenerFilaActiva() {
-  var hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var fila = hoja.getActiveCell().getRow(); // Obtiene el número de fila activa
-  var datosFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn()).getValues(); // Obtiene los datos de la fila activa
-  Logger.log(datosFila); // Muestra los datos en el registro
-}
  
 ///////////////////////////NUEVO
 function onOpen() {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu('Cobros')
-        .addItem('Ejecutar cobro en fila seleccionada', 'mostrarMensajePrueba')
+        .addItem('Ejecutar cobro en fila seleccionada', 'obtenerFilaActiva')
         .addToUi();
 }
-function mostrarMensajePrueba() {
-    var ui = SpreadsheetApp.getUi();
-    ui.alert('¡Éxito!', 'El botón funciona correctamente', ui.ButtonSet.OK);
+
+////////////////////////EJECUTAR COBROS 
+function crearStagingCobros(ss) {
+    var hojaCobros = ss.insertSheet("Staging Cobros");
+    
+    // Tabla principal de staging de cobros
+    var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO"];
+
+    hojaCobros.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold")
+        .setBackground("#424242")
+        .setFontColor("white")
+        .setHorizontalAlignment("center");
+    hojaCobros.autoResizeColumns(1, hojaCobros.getLastColumn());
+    return hojaCobros;
+}
+
+function obtenerFechaActual() {
+  var fecha = new Date();
+  var fechaFormateada = Utilities.formatDate(fecha, Session.getScriptTimeZone(), "dd/MM/yyyy");
+  Logger.log(fechaFormateada);
+  return fechaFormateada;
+}
+
+//vista previsiones
+function obtenerFilaActiva() {
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var fila = hoja.getActiveCell().getRow(); // Obtiene el número de fila activa
+  var datosFila = hoja.getRange(fila, 1, 1, 9).getValues(); // Obtiene los datos de la fila activa
+  var abono = datosFila[0][5];
+  var saldoPendiente = datosFila[0][6];
+
+  if (saldoPendiente > 0 && abono === "") {
+    Browser.msgBox("Error: El campo 'Abono' es obligatorio.");
+    return;
+  }
+  if (saldoPendiente > 0 && datosFila[0][8] === "") {
+    Browser.msgBox("Error: El campo 'Proxima Fecha' es obligatorio.");
+    return;
+  }
+  if (datosFila[0][7] === "") {
+  Browser.msgBox("Error: El campo 'Tipo de pago' es obligatorio.");
+  return;
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (abono) {
+      
+      var hojaStagingCobros = ss.getSheetByName("Staging Cobros") || crearStagingCobros(ss);
+
+      var newData = [
+        datosFila[0][0],
+        obtenerFechaActual(),
+        datosFila[0][2],
+        datosFila[0][3],
+        datosFila[0][7],
+        datosFila[0][5]
+      ];
+
+      hojaStagingCobros.appendRow(newData);
+  }
+  
+  if (saldoPendiente > 0) {
+    var newData = [
+      datosFila[0][0],
+      datosFila[0][8],
+      datosFila[0][2],
+      datosFila[0][3],
+      datosFila[0][4],
+      "",
+      datosFila[0][6],
+      datosFila[0][7],
+      ""
+    ];
+    var hojaStagingPrevisiones = ss.getSheetByName("Staging Previsiones");
+    hojaStagingPrevisiones.appendRow(newData);
+  }
+      var ui = SpreadsheetApp.getUi();
+    ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
