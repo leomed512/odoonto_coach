@@ -381,62 +381,65 @@ for (var i = 1; i < datos.length; i++) {
 var annosArray = Array.from(annos).sort((a, b) => a - b);
  /////////////////////////   
 
-    var validacionAnno = SpreadsheetApp.newDataValidation()
-        .requireValueInList(annosArray)
-        .setAllowInvalid(false)
-        .build();
-    hojaVista.getRange("B2").setDataValidation(validacionAnno);
-    
-    var meses = [
-        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-    ];
-    var validacionMes = SpreadsheetApp.newDataValidation()
-        .requireValueInList(meses)
-        .setAllowInvalid(false)
-        .build();
-    hojaVista.getRange("B3").setDataValidation(validacionMes);
+var validacionAnno = SpreadsheetApp.newDataValidation()
+    .requireValueInList(annosArray)
+    .setAllowInvalid(false)
+    .build();
+hojaVista.getRange("B2").setDataValidation(validacionAnno);
 
-    // Celdas auxiliares para fechas
-    hojaVista.getRange("P1").setFormula('=IF(B2="","",B2)');
-hojaVista.getRange("P2").setFormula(`=IF(OR(B2="",B3=""),"",DATE(B2,
+var meses = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+var validacionMes = SpreadsheetApp.newDataValidation()
+    .requireValueInList(meses)
+    .setAllowInvalid(false)
+    .build();
+hojaVista.getRange("B3").setDataValidation(validacionMes);
+
+
+///////////////////////////////NUEVO
+hojaVista.getRange("P1").setFormula('=IF(B2="","",B2)');
+hojaVista.getRange("P2").setFormula(`=IF(B2="","",IF(B3="",DATE(B2,1,1),DATE(B2,
     SWITCH(B3,
     "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
-    "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1))`);
-hojaVista.getRange("P3").setFormula('=IF(OR(B2="",B3=""),"",EOMONTH(P2,0))');
+    "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1)))`);
+hojaVista.getRange("P3").setFormula('=IF(B2="","",IF(B3="",DATE(B2,12,31),EOMONTH(P2,0)))');
 hojaVista.hideColumn(hojaVista.getRange("P:P"));
 
-    // Encabezados de la tabla
-    var encabezados = [
-        "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "IMPORTE TOTAL",
-        "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO"
-    ];
-    
-    hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
-        .setFontWeight("bold")
-        .setBackground("#424242")
-        .setFontColor("white")
-        .setHorizontalAlignment("center");
+/////////////////////////////////
+
+// Encabezados de la tabla
+var encabezados = [
+    "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "IMPORTE TOTAL",
+    "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO"
+];
+
+hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
+    .setFontWeight("bold")
+    .setBackground("#424242")
+    .setFontColor("white")
+    .setHorizontalAlignment("center");
 ///////////////////////////////////////////////////////////////////////////////////////////////NUEVO
     // Agregar filtros a los encabezados
     hojaVista.getRange(5, 1, 1, encabezados.length).createFilter();
 /////////////////////////////////////////////////////////////////////////////////////////////
-    // Configurar formato de columnas
-    hojaVista.getRange("E:G").setNumberFormat("€#,##0.00");
-    
-    // Validación para tipo de pago
-    var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
-    var validacionTipoPago = SpreadsheetApp.newDataValidation()
-        .requireValueInList(tipoPagoOpciones, true)
-        .setAllowInvalid(false)
-        .build();
+// Configurar formato de columnas
+hojaVista.getRange("E:G").setNumberFormat("€#,##0.00");
 
-    // Validación para fecha
-    var validacionFecha = SpreadsheetApp.newDataValidation()
-        .requireDate()
-        .setAllowInvalid(false)
-        .setHelpText('Por favor, ingrese una fecha válida')
-        .build();
+// Validación para tipo de pago
+var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+var validacionTipoPago = SpreadsheetApp.newDataValidation()
+    .requireValueInList(tipoPagoOpciones, true)
+    .setAllowInvalid(false)
+    .build();
+
+// Validación para fecha
+var validacionFecha = SpreadsheetApp.newDataValidation()
+    .requireDate()
+    .setAllowInvalid(false)
+    .setHelpText('Por favor, ingrese una fecha válida')
+    .build();
 
 
 // Obtener el rango de datos desde la hoja Staging
@@ -489,12 +492,21 @@ function actualizarVistaPrevisiones() {
     var anno = hojaVista.getRange("B2").getValue();
     var mes = hojaVista.getRange("B3").getValue();
     
-    if (!anno || !mes) return;
+ /////////////////////////////////NUEVO
+if (!anno) return; // Solo requerimos el año
 
-    var fechaInicio = hojaVista.getRange("P2").getValue();
-    var fechaFin = hojaVista.getRange("P3").getValue();
+    // Definir fechas de inicio y fin según si hay mes seleccionado
+    var fechaInicio, fechaFin;
     
-////////////////////////////////////////////NUEVO
+    if (mes) {
+        // Si hay mes seleccionado, usar las fechas calculadas en P2 y P3
+        fechaInicio = hojaVista.getRange("P2").getValue();
+        fechaFin = hojaVista.getRange("P3").getValue();
+    } else {
+        // Si solo hay año, usar todo el año
+        fechaInicio = new Date(anno, 0, 1); // 1 de enero del año seleccionado
+        fechaFin = new Date(anno, 11, 31); // 31 de diciembre del año seleccionado
+    }
   // Primero, limpiar todos los datos existentes
     var ultimaFila = hojaVista.getLastRow();
     if (ultimaFila > 5) { // 5 es la fila del encabezado
@@ -724,4 +736,3 @@ function mostrarMensajePrueba() {
     var ui = SpreadsheetApp.getUi();
     ui.alert('¡Éxito!', 'El botón funciona correctamente', ui.ButtonSet.OK);
 }
-
