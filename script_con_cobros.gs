@@ -354,13 +354,21 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     hojaVista.getRange("B3").setDataValidation(validacionMes);
 
     // Celdas auxiliares para fechas
-    hojaVista.getRange("D1").setFormula('=IF(B2="","",B2)');
-    hojaVista.getRange("D2").setFormula(`=IF(OR(B2="",B3=""),"",DATE(B2,
-        SWITCH(B3,
-        "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
-        "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1))`);
-    hojaVista.getRange("D3").setFormula('=IF(OR(B2="",B3=""),"",EOMONTH(D2,0))');
-    hojaVista.hideColumn(hojaVista.getRange("D:D"));
+    // hojaVista.getRange("D1").setFormula('=IF(B2="","",B2)');
+    // hojaVista.getRange("D2").setFormula(`=IF(OR(B2="",B3=""),"",DATE(B2,
+    //     SWITCH(B3,
+    //     "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
+    //     "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1))`);
+    // hojaVista.getRange("D3").setFormula('=IF(OR(B2="",B3=""),"",EOMONTH(D2,0))');
+    // hojaVista.hideColumn(hojaVista.getRange("D:D"));
+
+    hojaVista.getRange("P1").setFormula('=IF(B2="","",B2)');
+hojaVista.getRange("P2").setFormula(`=IF(OR(B2="",B3=""),"",DATE(B2,
+    SWITCH(B3,
+    "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
+    "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1))`);
+hojaVista.getRange("P3").setFormula('=IF(OR(B2="",B3=""),"",EOMONTH(P2,0))');
+hojaVista.hideColumn(hojaVista.getRange("P:P"));
 
     // Encabezados de la tabla
     var encabezados = [
@@ -446,8 +454,10 @@ function actualizarVistaPrevisiones() {
     
     if (!anno || !mes) return;
     
-    var fechaInicio = hojaVista.getRange("D2").getValue();
-    var fechaFin = hojaVista.getRange("D3").getValue();
+    // var fechaInicio = hojaVista.getRange("D2").getValue();
+    // var fechaFin = hojaVista.getRange("D3").getValue();
+    var fechaInicio = hojaVista.getRange("P2").getValue();
+var fechaFin = hojaVista.getRange("P3").getValue();
     
     var datosStaging = hojaStaging.getDataRange().getValues();
     var datosFiltrados = datosStaging.filter((row, index) => {
@@ -659,3 +669,4 @@ function obtenerFilaActiva() {
   Logger.log(datosFila); // Muestra los datos en el registro
 }
  
+
