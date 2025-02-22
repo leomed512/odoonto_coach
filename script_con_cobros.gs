@@ -318,12 +318,39 @@ function crearVistaPrevisiones(ss) {
 // Configurar hoja de vista de previsiones
 function configurarVistaPrevisiones(hojaVista, ss) {
     hojaVista.clear();
-
-    // Configuración inicial igual que antes...
-    hojaVista.getRange("A1").setValue("Filtros");
+////////////////////////////////////////////NUEVO
+    hojaVista.getRange("A1:B1").setValue("Previsiones");
     hojaVista.getRange("A2").setValue("Año:");
     hojaVista.getRange("A3").setValue("Mes:");
-    
+        // Configurar título "Previsiones"
+    hojaVista.getRange("A1:B1")
+        .setValue("Previsiones")
+        .setFontSize(20)
+        .setFontWeight("bold")
+        .setBackground("#00c896")
+        .setHorizontalAlignment("center")
+        .merge();
+
+    // Configurar "Año:"
+    hojaVista.getRange("A2")
+        .setValue("Año:")
+        .setFontSize(12)
+        .setFontWeight("bold")
+        .setBackground("#999999")
+        .setFontColor("white");
+
+    // Configurar "Mes:"
+    hojaVista.getRange("A3")
+        .setValue("Mes:")
+        .setFontSize(12)
+        .setFontWeight("bold")
+        .setBackground("#424242")
+        .setFontColor("white");
+        
+    // Alinear el contenido de B3 a la derecha
+    hojaVista.getRange("B3").setHorizontalAlignment("right");
+
+/////////////////////////////////////////////////////////////////    
     // Validaciones de año y mes igual que antes...
     var hojaStaging = ss.getSheetByName("Staging Previsiones");
     var datos = hojaStaging.getDataRange().getValues();
@@ -354,14 +381,6 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     hojaVista.getRange("B3").setDataValidation(validacionMes);
 
     // Celdas auxiliares para fechas
-    // hojaVista.getRange("D1").setFormula('=IF(B2="","",B2)');
-    // hojaVista.getRange("D2").setFormula(`=IF(OR(B2="",B3=""),"",DATE(B2,
-    //     SWITCH(B3,
-    //     "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
-    //     "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1))`);
-    // hojaVista.getRange("D3").setFormula('=IF(OR(B2="",B3=""),"",EOMONTH(D2,0))');
-    // hojaVista.hideColumn(hojaVista.getRange("D:D"));
-
     hojaVista.getRange("P1").setFormula('=IF(B2="","",B2)');
 hojaVista.getRange("P2").setFormula(`=IF(OR(B2="",B3=""),"",DATE(B2,
     SWITCH(B3,
@@ -381,7 +400,10 @@ hojaVista.hideColumn(hojaVista.getRange("P:P"));
         .setBackground("#424242")
         .setFontColor("white")
         .setHorizontalAlignment("center");
-
+///////////////////////////////////////////////////////////////////////////////////////////////NUEVO
+    // Agregar filtros a los encabezados
+    hojaVista.getRange(5, 1, 1, encabezados.length).createFilter();
+/////////////////////////////////////////////////////////////////////////////////////////////
     // Configurar formato de columnas
     hojaVista.getRange("E:G").setNumberFormat("€#,##0.00");
     
@@ -399,9 +421,7 @@ hojaVista.hideColumn(hojaVista.getRange("P:P"));
         .setHelpText('Por favor, ingrese una fecha válida')
         .build();
 
-// Aplicar validaciones a las columnas completas desde la fila 6
-// hojaVista.getRange("H6:H").setDataValidation(validacionTipoPago);  // Tipo de Pago
-// hojaVista.getRange("I6:I").setDataValidation(validacionFecha);     // Próximo Pago
+
 // Obtener el rango de datos desde la hoja Staging
 var hojaStaging = ss.getSheetByName("Staging Previsiones");
 var datosStaging = hojaStaging.getDataRange().getValues();
@@ -453,9 +473,7 @@ function actualizarVistaPrevisiones() {
     var mes = hojaVista.getRange("B3").getValue();
     
     if (!anno || !mes) return;
-    
-    // var fechaInicio = hojaVista.getRange("D2").getValue();
-    // var fechaFin = hojaVista.getRange("D3").getValue();
+
     var fechaInicio = hojaVista.getRange("P2").getValue();
 var fechaFin = hojaVista.getRange("P3").getValue();
     
@@ -619,6 +637,7 @@ function onEdit(e) {
         }
     }
 
+
     if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros")) {
         var estadoNuevo = rango.getValue();
         var fila = rango.getRow();
@@ -669,4 +688,14 @@ function obtenerFilaActiva() {
   Logger.log(datosFila); // Muestra los datos en el registro
 }
  
-
+///////////////////////////NUEVO
+function onOpen() {
+    var ui = SpreadsheetApp.getUi();
+    ui.createMenu('Cobros')
+        .addItem('Ejecutar cobro en fila seleccionada', 'mostrarMensajePrueba')
+        .addToUi();
+}
+function mostrarMensajePrueba() {
+    var ui = SpreadsheetApp.getUi();
+    ui.alert('¡Éxito!', 'El botón funciona correctamente', ui.ButtonSet.OK);
+}
