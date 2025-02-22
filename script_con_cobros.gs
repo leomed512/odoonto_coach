@@ -350,20 +350,37 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     // Alinear el contenido de B3 a la derecha
     hojaVista.getRange("B3").setHorizontalAlignment("right");
 
-/////////////////////////////////////////////////////////////////    
-    // Validaciones de año y mes igual que antes...
-    var hojaStaging = ss.getSheetByName("Staging Previsiones");
-    var datos = hojaStaging.getDataRange().getValues();
-    var annos = new Set();
-    
-    for (var i = 1; i < datos.length; i++) {
-        if (datos[i][1]) {
-            var fecha = new Date(datos[i][1]);
+ ////////////////////////////NUEVO
+
+// Validaciones de año y mes igual que antes...
+var hojaStaging = ss.getSheetByName("Staging Previsiones");
+var datos = hojaStaging.getDataRange().getValues();
+var annos = new Set();
+
+// Asegurarnos de procesar correctamente todas las fechas
+for (var i = 1; i < datos.length; i++) {
+    if (datos[i][1]) {
+        var fecha;
+        // Manejar tanto objetos Date como strings de fecha
+        if (datos[i][1] instanceof Date) {
+            fecha = datos[i][1];
+        } else {
+            fecha = new Date(datos[i][1]);
+        }
+        
+        // Verificar que la fecha sea válida antes de extraer el año
+        if (!isNaN(fecha.getTime())) {
             annos.add(fecha.getFullYear());
+        } else {
+            Logger.log("Fecha inválida encontrada en la fila " + (i + 1));
         }
     }
-    
-    var annosArray = Array.from(annos).sort();
+}
+
+// Asegurarnos de que el Set se convierte correctamente a array
+var annosArray = Array.from(annos).sort((a, b) => a - b);
+ /////////////////////////   
+
     var validacionAnno = SpreadsheetApp.newDataValidation()
         .requireValueInList(annosArray)
         .setAllowInvalid(false)
@@ -475,8 +492,16 @@ function actualizarVistaPrevisiones() {
     if (!anno || !mes) return;
 
     var fechaInicio = hojaVista.getRange("P2").getValue();
-var fechaFin = hojaVista.getRange("P3").getValue();
+    var fechaFin = hojaVista.getRange("P3").getValue();
     
+////////////////////////////////////////////NUEVO
+  // Primero, limpiar todos los datos existentes
+    var ultimaFila = hojaVista.getLastRow();
+    if (ultimaFila > 5) { // 5 es la fila del encabezado
+        hojaVista.getRange(6, 1, ultimaFila - 5, hojaVista.getLastColumn()).clearContent();
+    }
+///////////////////////////////////////////////
+
     var datosStaging = hojaStaging.getDataRange().getValues();
     var datosFiltrados = datosStaging.filter((row, index) => {
         if (index === 0) return false; // Skip header
@@ -699,3 +724,4 @@ function mostrarMensajePrueba() {
     var ui = SpreadsheetApp.getUi();
     ui.alert('¡Éxito!', 'El botón funciona correctamente', ui.ButtonSet.OK);
 }
+
