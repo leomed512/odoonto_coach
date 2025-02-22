@@ -389,7 +389,8 @@ hojaVista.getRange("B2").setDataValidation(validacionAnno);
 
 var meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    "Ver todo el año"  // Añade esta nueva opción
 ];
 var validacionMes = SpreadsheetApp.newDataValidation()
     .requireValueInList(meses)
@@ -400,11 +401,12 @@ hojaVista.getRange("B3").setDataValidation(validacionMes);
 
 ///////////////////////////////NUEVO
 hojaVista.getRange("P1").setFormula('=IF(B2="","",B2)');
-hojaVista.getRange("P2").setFormula(`=IF(B2="","",IF(B3="",DATE(B2,1,1),DATE(B2,
+hojaVista.getRange("P2").setFormula(`=IF(B2="","",IF(OR(B3="",B3="Ver todo el año"),DATE(B2,1,1),DATE(B2,
     SWITCH(B3,
     "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
     "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1)))`);
-hojaVista.getRange("P3").setFormula('=IF(B2="","",IF(B3="",DATE(B2,12,31),EOMONTH(P2,0)))');
+hojaVista.getRange("P3").setFormula('=IF(B2="","",IF(OR(B3="",B3="Ver todo el año"),DATE(B2,12,31),EOMONTH(P2,0)))');
+
 hojaVista.hideColumn(hojaVista.getRange("P:P"));
 
 /////////////////////////////////
@@ -497,13 +499,13 @@ if (!anno) return; // Solo requerimos el año
 
     // Definir fechas de inicio y fin según si hay mes seleccionado
     var fechaInicio, fechaFin;
-    
-    if (mes) {
-        // Si hay mes seleccionado, usar las fechas calculadas en P2 y P3
+
+        if (mes && mes !== "Ver todo el año") {
+        // Si hay mes seleccionado y no es "Ver todo el año", usar las fechas calculadas en P2 y P3
         fechaInicio = hojaVista.getRange("P2").getValue();
         fechaFin = hojaVista.getRange("P3").getValue();
     } else {
-        // Si solo hay año, usar todo el año
+        // Si solo hay año o se seleccionó "Ver todo el año"
         fechaInicio = new Date(anno, 0, 1); // 1 de enero del año seleccionado
         fechaFin = new Date(anno, 11, 31); // 31 de diciembre del año seleccionado
     }
