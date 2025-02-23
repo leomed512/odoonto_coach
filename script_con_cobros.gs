@@ -37,6 +37,10 @@ function guardarDatosEnTabla2() {
         Browser.msgBox("Error: Debes ingresar una fecha.");
         return;
     }
+    if (datos[14][2] === "Aceptado" && !datos[14][3]) {
+    Browser.msgBox("Error: Para pacientes con estado 'Aceptado', la fecha de inicio es obligatoria.");
+    return;
+    }
 
     // Generar ID de transacción
     const transactionId = generateSequentialTransactionId();
@@ -230,7 +234,8 @@ function crearHojaPrevisiones(ss) {
         "ABONO", 
         "SALDO PENDIENTE", 
         "TIPO DE PAGO", 
-        "PRÓXIMO PAGO"
+        "PRÓXIMO PAGO",
+        "TRATAMIENTO"
     ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
@@ -262,6 +267,7 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
         "",
         `=IF(ISBLANK(F${ultimaFila}), E${ultimaFila}, E${ultimaFila}-F${ultimaFila})`,
         "",
+        "",
         ""
     ];
 
@@ -277,6 +283,7 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
     hojaPrevisiones.getRange(ultimaFila, 9).setDataValidation(
         SpreadsheetApp.newDataValidation().requireDate().build()
     );
+    actualizarDropdownAnos();
 }
 
 
@@ -317,8 +324,9 @@ function crearVistaPrevisiones(ss) {
 }
 // Configurar hoja de vista de previsiones
 function configurarVistaPrevisiones(hojaVista, ss) {
-    hojaVista.clear();
+    //hojaVista.clear();
 ////////////////////////////////////////////NUEVO
+
     hojaVista.getRange("A1:B1").setValue("Previsiones");
     hojaVista.getRange("A2").setValue("Año:");
     hojaVista.getRange("A3").setValue("Mes:");
@@ -367,7 +375,6 @@ for (var i = 1; i < datos.length; i++) {
         } else {
             fecha = new Date(datos[i][1]);
         }
-        
         // Verificar que la fecha sea válida antes de extraer el año
         if (!isNaN(fecha.getTime())) {
             annos.add(fecha.getFullYear());
@@ -380,41 +387,33 @@ for (var i = 1; i < datos.length; i++) {
 // Asegurarnos de que el Set se convierte correctamente a array
 var annosArray = Array.from(annos).sort((a, b) => a - b);
  /////////////////////////   
-
+var annosArrayString = annosArray.map(String);
+console.log(typeof annosArrayString);
 var validacionAnno = SpreadsheetApp.newDataValidation()
-    .requireValueInList(annosArray)
+    .requireValueInList(annosArrayString)
     .setAllowInvalid(false)
     .build();
 hojaVista.getRange("B2").setDataValidation(validacionAnno);
+
 
 var meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
     "Ver todo el año"  // Añade esta nueva opción
 ];
+console.log(typeof meses);
 var validacionMes = SpreadsheetApp.newDataValidation()
     .requireValueInList(meses)
     .setAllowInvalid(false)
     .build();
 hojaVista.getRange("B3").setDataValidation(validacionMes);
 
-
-///////////////////////////////NUEVO
-hojaVista.getRange("P1").setFormula('=IF(B2="","",B2)');
-hojaVista.getRange("P2").setFormula(`=IF(B2="","",IF(OR(B3="",B3="Ver todo el año"),DATE(B2,1,1),DATE(B2,
-    SWITCH(B3,
-    "Enero",1,"Febrero",2,"Marzo",3,"Abril",4,"Mayo",5,"Junio",6,
-    "Julio",7,"Agosto",8,"Septiembre",9,"Octubre",10,"Noviembre",11,"Diciembre",12),1)))`);
-hojaVista.getRange("P3").setFormula('=IF(B2="","",IF(OR(B3="",B3="Ver todo el año"),DATE(B2,12,31),EOMONTH(P2,0)))');
-
-hojaVista.hideColumn(hojaVista.getRange("P:P"));
-
 /////////////////////////////////
 
 // Encabezados de la tabla
 var encabezados = [
     "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "IMPORTE TOTAL",
-    "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO"
+    "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO", "TRATAMIENTO"
 ];
 
 hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -457,6 +456,47 @@ if (numFilasConDatos > 0) {
 
     // Añadir tabla resumen (igual que antes)
     configurarTablaResumen(hojaVista);
+}
+
+function actualizarDropdownAnos() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaStaging = ss.getSheetByName("Staging Previsiones");
+    var hojaVista = ss.getSheetByName("Vista Previsiones");
+    
+    // Obtener todos los datos de Staging Previsiones
+    var datos = hojaStaging.getDataRange().getValues();
+    var annos = new Set();
+    
+    // Procesar las fechas para obtener años únicos
+    for (var i = 1; i < datos.length; i++) {
+        if (datos[i][1]) {  // Columna B (índice 1) contiene las fechas
+            var fecha;
+            // Manejar tanto objetos Date como strings de fecha
+            if (datos[i][1] instanceof Date) {
+                fecha = datos[i][1];
+            } else {
+                fecha = new Date(datos[i][1]);
+            }
+            // Verificar que la fecha sea válida antes de extraer el año
+            if (!isNaN(fecha.getTime())) {
+                annos.add(fecha.getFullYear());
+            }
+        }
+    }
+    
+    // Convertir Set a array ordenado
+    var annosArray = Array.from(annos).sort((a, b) => a - b);
+    var annosArrayString = annosArray.map(String);
+    
+    // Actualizar la validación del dropdown
+    if (annosArrayString.length > 0) {
+        var validacionAnno = SpreadsheetApp.newDataValidation()
+            .requireValueInList(annosArrayString)
+            .setAllowInvalid(false)
+            .build();
+        
+        hojaVista.getRange("B2").setDataValidation(validacionAnno);
+    }
 }
 function configurarTablaResumen(hojaVista) {
     var resumenEncabezados = [
@@ -706,6 +746,7 @@ function onEdit(e) {
             // Agregar a Cobros y Previsiones con el ID
             agregarAPacientesAceptados(hojaCobros, transactionId, paciente, fecha, importe, doctor);
             agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fecha, paciente, doctor, importe);
+          
         }
 
         actualizarFormatoFila(hoja, fila, estadoNuevo);
@@ -754,7 +795,7 @@ function obtenerFechaActual() {
 function obtenerFilaActiva() {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var fila = hoja.getActiveCell().getRow(); // Obtiene el número de fila activa
-  var datosFila = hoja.getRange(fila, 1, 1, 9).getValues(); // Obtiene los datos de la fila activa
+  var datosFila = hoja.getRange(fila, 1, 1, 10).getValues(); // Obtiene los datos de la fila activa
   var abono = datosFila[0][5];
   var saldoPendiente = datosFila[0][6];
 
@@ -797,11 +838,16 @@ function obtenerFilaActiva() {
       "",
       datosFila[0][6],
       datosFila[0][7],
-      ""
+      "",
+      datosFila[0][10]
     ];
     var hojaStagingPrevisiones = ss.getSheetByName("Staging Previsiones");
     hojaStagingPrevisiones.appendRow(newData);
+        // Actualizar el dropdown de años después de agregar el nuevo registro
+    actualizarDropdownAnos();
   }
       var ui = SpreadsheetApp.getUi();
     ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
+
+
