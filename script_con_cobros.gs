@@ -199,6 +199,11 @@ function actualizarDatoEnStaging(hojaVista, rango) {
         var importeTotal = hojaVista.getRange(fila, 5).getValue();
         var saldoPendiente = importeTotal - nuevoValor;
         hojaVista.getRange(fila, 7).setValue(saldoPendiente);
+        
+        // NUEVO: Verificar si el saldo es 0 y registrar en el log
+        if (saldoPendiente === 0) {
+            Logger.log('Transacción ' + idTransaccion + ' completamente pagada');
+        }
     }
 }
 
@@ -344,11 +349,13 @@ var hojaStaging = ss.getSheetByName("Staging Previsiones");
 var datosStaging = hojaStaging.getDataRange().getValues();
 var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encabezado
 
+
+////////////////////////////////////////////////////////////////////////LEO ***ELIMINAR
 // Aplicar validaciones solo al rango esperado de datos
-if (numFilasConDatos > 0) {
-    hojaVista.getRange(6, 8, numFilasConDatos).setDataValidation(validacionTipoPago);  // Tipo de Pago
-    hojaVista.getRange(6, 9, numFilasConDatos).setDataValidation(validacionFecha);     // Próximo Pago
-}
+// if (numFilasConDatos > 0) {
+//     hojaVista.getRange(6, 8, numFilasConDatos).setDataValidation(validacionTipoPago);  // Tipo de Pago
+//     hojaVista.getRange(6, 9, numFilasConDatos).setDataValidation(validacionFecha);     // Próximo Pago
+// }
 
     // Añadir tabla resumen (igual que antes)
     configurarTablaResumen(hojaVista);
@@ -462,6 +469,23 @@ if (!anno) return; // Solo requerimos el año
     if (datosFiltrados.length > 0) {
         hojaVista.getRange(6, 1, datosFiltrados.length, datosFiltrados[0].length)
             .setValues(datosFiltrados);
+
+            //////////////////////////LEO
+            // Añadir este bloque para aplicar validaciones
+        var validacionTipoPago = SpreadsheetApp.newDataValidation()
+            .requireValueInList(["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"], true)
+            .setAllowInvalid(false)
+            .build();
+
+        var validacionFecha = SpreadsheetApp.newDataValidation()
+            .requireDate()
+            .setAllowInvalid(false)
+            .setHelpText('Por favor, ingrese una fecha válida')
+            .build();
+
+        // Aplicar validaciones a las columnas correspondientes
+        hojaVista.getRange(6, 8, datosFiltrados.length).setDataValidation(validacionTipoPago);  // Tipo de Pago
+        hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionFecha);     // Próximo Pago
     } else {
         hojaVista.getRange(6, 1).setValue("No hay datos para mostrar");
     }
@@ -664,7 +688,7 @@ function obtenerFilaActiva() {
   if (saldoPendiente > 0 && abono === "") {
     Browser.msgBox("Error: El campo 'Abono' es obligatorio.");
     return;
-  }
+  }/////////////////////////////////////////////////////////////////////////////////////////LEO
   if (saldoPendiente > 0 && datosFila[0][8] === "") {
     Browser.msgBox("Error: El campo 'Proxima Fecha' es obligatorio.");
     return;
@@ -688,8 +712,7 @@ function obtenerFilaActiva() {
       ];
 
       hojaStagingCobros.appendRow(newData);
-  }
-  
+
   if (saldoPendiente > 0) {
     var newData = [
       datosFila[0][0],
@@ -711,4 +734,4 @@ function obtenerFilaActiva() {
       var ui = SpreadsheetApp.getUi();
     ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
-
+}
