@@ -124,7 +124,8 @@ function crearHojaPrevisiones(ss) {
         "SALDO PENDIENTE", 
         "TIPO DE PAGO", 
         "PRÓXIMO PAGO",
-        "TRATAMIENTO"
+        "TRATAMIENTO",
+        "ESTADO"////////////////////////////////////////////////LEO
     ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
@@ -146,6 +147,9 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
 
     var ultimaFila = hojaPrevisiones.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+////////////////////////////////////////////LEO
+    // Determinar el estado de pago
+    var estadoPago = importeAceptado === 0 ? "PAGADO" : "PENDIENTE";
 
     var nuevaFila = [
         transactionId,
@@ -157,7 +161,8 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
         `=IF(ISBLANK(F${ultimaFila}), E${ultimaFila}, E${ultimaFila}-F${ultimaFila})`,
         "",
         "",
-        ""
+        "",
+        estadoPago
     ];
 
     hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
@@ -187,24 +192,53 @@ function actualizarDatoEnStaging(hojaVista, rango) {
     
     // Buscar la fila correspondiente en Staging
     var datosStaging = hojaStaging.getDataRange().getValues();
-    for (var i = 1; i < datosStaging.length; i++) {
+    
+    //////////////////////////////LEO 
+  for (var i = 1; i < datosStaging.length; i++) {
         if (datosStaging[i][0] === idTransaccion) {
             hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
-            break;
+            
+            // Si se modifica el abono
+            if (columna === 6) {
+                var importeTotal = datosStaging[i][4];
+                var saldoPendiente = importeTotal - nuevoValor;
+                hojaStaging.getRange(i + 1, 7).setValue(saldoPendiente);
+                
+                // Actualizar estado de pago
+                var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+                hojaStaging.getRange(i + 1, 11).setValue(estadoPago);
+            }
         }
     }
     
-    // Actualizar saldo pendiente si es necesario
+    // Actualizar en la vista de previsiones
     if (columna === 6) { // Si se modificó el abono
         var importeTotal = hojaVista.getRange(fila, 5).getValue();
         var saldoPendiente = importeTotal - nuevoValor;
         hojaVista.getRange(fila, 7).setValue(saldoPendiente);
         
-        // NUEVO: Verificar si el saldo es 0 y registrar en el log
-        if (saldoPendiente === 0) {
-            Logger.log('Transacción ' + idTransaccion + ' completamente pagada');
-        }
+        // Actualizar columna de estado de pago
+        var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+        hojaVista.getRange(fila, 11).setValue(estadoPago);
     }
+    // for (var i = 1; i < datosStaging.length; i++) {
+    //     if (datosStaging[i][0] === idTransaccion) {
+    //         hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
+    //         break;
+    //     }
+    // }
+    
+    // // Actualizar saldo pendiente si es necesario
+    // if (columna === 6) { // Si se modificó el abono
+    //     var importeTotal = hojaVista.getRange(fila, 5).getValue();
+    //     var saldoPendiente = importeTotal - nuevoValor;
+    //     hojaVista.getRange(fila, 7).setValue(saldoPendiente);
+        
+    //     // // NUEVO: Verificar si el saldo es 0 y registrar en el log
+    //     // if (saldoPendiente === 0) {
+    //     //     Logger.log('Transacción ' + idTransaccion + ' completamente pagada');
+    //     // }//////////////////////////////////////////////LEO BORRAR
+    // }
 }
 
 // crear hoja de visualizaciones de previsiones
@@ -252,7 +286,21 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     // Alinear el contenido de B3 a la derecha
     hojaVista.getRange("B3").setHorizontalAlignment("right");
 
- ////////////////////////////NUEVO
+ ////////////////////////////LEO
+////INSTRUCCIONES
+    hojaVista.getRange(1, 5, 1, 6).merge().setValue("INSTRUCCIONES PARA REGISTRAR PAGOS ")
+        .setFontSize(10)
+        .setBackground("#00c896")
+        .setFontColor("#424242")
+        .setFontWeight('bold')
+        .setHorizontalAlignment("center");
+      hojaVista.getRange(2, 5, 2, 6).merge().setValue("Identifica la transacción que deseas ejecutar, ingresa el ABONO, TIPO DE PAGO. Si el pago será divido en cuotas ingresa la próxima fecha en que se realizará otro pago. Selecciona la fila completa de la transacción, ve a la barra de Menú > Cobros > Ejecutar cobro en fila seleccionada")
+      .setFontSize(10)
+      .setBackground("#424242")
+      .setFontColor("#FFFFFF")
+      .setWrap(true)
+      .setVerticalAlignment("middle")
+      .setHorizontalAlignment("center");
 
 // Validaciones de año y mes igual que antes...
 var hojaStaging = ss.getSheetByName("Staging Previsiones");
@@ -314,7 +362,7 @@ hojaVista.hideColumns(16, 1); // Oculta la columna P
 // Encabezados de la tabla
 var encabezados = [
     "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "IMPORTE TOTAL",
-    "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO", "TRATAMIENTO"
+    "ABONO", "SALDO PENDIENTE", "TIPO DE PAGO", "PRÓXIMO PAGO", "TRATAMIENTO", "ESTADO"
 ];
 
 hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -408,26 +456,27 @@ function configurarTablaResumen(hojaVista) {
         ["Total Abonado", "=SUM(F6:F)", ""],
         ["Total Pendiente", "=SUM(G6:G)", ""]
     ];
-
-    var rangoResumen = hojaVista.getRange(1, 11, resumenEncabezados.length, 3);
+  ////////////////////////////////////////////////////////LEO  
+    var rangoResumen = hojaVista.getRange(1, 12, resumenEncabezados.length, 3);
     rangoResumen.setValues(resumenEncabezados);
-    
+  ////////////////////////////////////////////////////////LEO  
     // Aplicar formatos
-    hojaVista.getRange("K1:M1")
+    hojaVista.getRange("L1:M1")
         .setBackground("#424242")
         .setFontColor("white")
         .setFontWeight("bold")
         .merge();
     
-    hojaVista.getRange("L2:L4").setNumberFormat("€#,##0.00");
+    hojaVista.getRange("M2:M4").setNumberFormat("€#,##0.00");
     
     // Estilos alternados
-    hojaVista.getRange("K2:M2").setBackground("#f6f6f6");
-    hojaVista.getRange("K3:M3").setBackground("#e2e2e2");
-    hojaVista.getRange("K4:M4").setBackground("#f6f6f6");
+    hojaVista.getRange("L2:M2").setBackground("#f6f6f6");
+    hojaVista.getRange("L3:M3").setBackground("#e2e2e2");
+    hojaVista.getRange("L4:M4").setBackground("#f6f6f6");
     
     // Bordes
-    hojaVista.getRange("K1:M4").setBorder(true, true, true, true, true, true);
+    hojaVista.getRange("L1:M4").setBorder(true, true, true, true, true, true);
+    ////////////////////////////////////////////////////////////////////////////////
 }
 function actualizarVistaPrevisiones() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -469,7 +518,13 @@ if (!anno) return; // Solo requerimos el año
     if (datosFiltrados.length > 0) {
         hojaVista.getRange(6, 1, datosFiltrados.length, datosFiltrados[0].length)
             .setValues(datosFiltrados);
-
+///////////////////////////////////////////////LEO NUEVO
+       hojaVista.getRange(6, 8, datosFiltrados.length).setDataValidation(validacionTipoPago)  // Tipo de Pago
+            .setBackground("#f0f0f0");  // Light gray background
+        hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionFecha)     // Próximo Pago
+            .setBackground("#f0f0f0");  // Light gray background
+        hojaVista.getRange(6, 6, datosFiltrados.length).setBackground("#f0f0f0");  // Abono column
+        hojaVista.getRange(6, 10, datosFiltrados.length).setBackground("#f0f0f0");  // TRATAMIENTO column
             //////////////////////////LEO
             // Añadir este bloque para aplicar validaciones
         var validacionTipoPago = SpreadsheetApp.newDataValidation()
@@ -482,7 +537,6 @@ if (!anno) return; // Solo requerimos el año
             .setAllowInvalid(false)
             .setHelpText('Por favor, ingrese una fecha válida')
             .build();
-
         // Aplicar validaciones a las columnas correspondientes
         hojaVista.getRange(6, 8, datosFiltrados.length).setDataValidation(validacionTipoPago);  // Tipo de Pago
         hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionFecha);     // Próximo Pago
