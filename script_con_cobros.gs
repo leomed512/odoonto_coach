@@ -59,6 +59,11 @@ function guardarDatosEnTabla2() {
     if (!hojaVista) {
         hojaVista = crearVistaPrevisiones(ss);
     }
+//// CREAR HOJA VISTA COBROS
+    var hojaVistaCobros = ss.getSheetByName("Vista Cobros");
+    if (!hojaVistaCobros) {
+    hojaVistaCobros = crearVistaCobros(ss);
+}
 
     var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
 
@@ -126,7 +131,7 @@ function crearHojaPrevisiones(ss) {
         "TIPO DE PAGO", 
         "PRÓXIMO PAGO",
         "TRATAMIENTO",
-        "ESTADO"////////////////////////////////////////////////LEO
+        "ESTADO"
     ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
@@ -149,7 +154,6 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
 
     var ultimaFila = hojaPrevisiones.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
-////////////////////////////////////////////LEO
     // Determinar el estado de pago
     var estadoPago = importeAceptado === 0 ? "PAGADO" : "PENDIENTE";
 
@@ -195,7 +199,7 @@ function actualizarDatoEnStaging(hojaVista, rango) {
     // Buscar la fila correspondiente en Staging
     var datosStaging = hojaStaging.getDataRange().getValues();
     
-    //////////////////////////////LEO 
+
   for (var i = 1; i < datosStaging.length; i++) {
         if (datosStaging[i][0] === idTransaccion) {
             hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
@@ -237,7 +241,6 @@ function crearVistaPrevisiones(ss) {
 }
 // Configurar hoja de vista de previsiones
 function configurarVistaPrevisiones(hojaVista, ss) {
-    //hojaVista.clear();
 
     hojaVista.getRange("A1:B1").setValue("Previsiones");
     hojaVista.getRange("A2").setValue("Año:");
@@ -270,7 +273,6 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     // Alinear el contenido de B3 a la derecha
     hojaVista.getRange("B3").setHorizontalAlignment("right");
 
- ////////////////////////////LEO
 ////INSTRUCCIONES
     hojaVista.getRange(1, 5, 1, 6).merge().setValue("INSTRUCCIONES PARA REGISTRAR PAGOS ")
         .setFontSize(12)
@@ -279,7 +281,7 @@ function configurarVistaPrevisiones(hojaVista, ss) {
         .setFontWeight('bold')
         .setVerticalAlignment("middle")
         .setHorizontalAlignment("center");
-      hojaVista.getRange(2, 5, 1, 6).merge().setValue("Identifica la transacción que deseas ejecutar, ingresa el ABONO, TIPO DE PAGO. Si el pago será divido en cuotas ingresa la próxima fecha en que se realizará otro pago.")
+      hojaVista.getRange(2, 5, 1, 6).merge().setValue("Identifica la transacción que deseas ejecutar, ingresa el ABONO, TIPO DE PAGO, verifica que se actualice SALDO PENDIENTE. Si el pago será en cuotas ingresa la próxima fecha de pago.")
       .setFontSize(10)
       .setBackground("#424242")
       .setFontColor("#FFFFFF")
@@ -287,7 +289,7 @@ function configurarVistaPrevisiones(hojaVista, ss) {
       .setVerticalAlignment("middle")
       .setHorizontalAlignment("center");
 
-      hojaVista.getRange(3, 5, 1, 6).merge().setValue("Selecciona la fila completa de la transacción, ve a la barra de Menú > Cobros > Ejecutar cobro en fila seleccionada")
+      hojaVista.getRange(3, 5, 1, 6).merge().setValue("Selecciona la fila completa de la transacción en el panel derecho, ve a la barra de Menú > Cobros > Ejecutar cobro en fila seleccionada")
       .setFontSize(10)
       .setBackground("#b8b6b6")
       .setFontColor("#080808")
@@ -368,7 +370,7 @@ hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
 // Configurar formato de columnas
 hojaVista.getRange("E:G").setNumberFormat("€#,##0.00");
 
-// Validación para tipo de pago
+// Validación para tipo de pago ///////////////////////////////////////////////////////////////////////////////////////// variables sin usar
 var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
 var validacionTipoPago = SpreadsheetApp.newDataValidation()
     .requireValueInList(tipoPagoOpciones, true)
@@ -387,7 +389,7 @@ var validacionFecha = SpreadsheetApp.newDataValidation()
 var hojaStaging = ss.getSheetByName("Staging Previsiones");
 var datosStaging = hojaStaging.getDataRange().getValues();
 var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encabezado
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Añadir tabla resumen (igual que antes)
     configurarTablaResumen(hojaVista);
@@ -440,10 +442,10 @@ function configurarTablaResumen(hojaVista) {
         ["Total Abonado", "=SUM(F6:F)", ""],
         ["Total Pendiente", "=SUM(G6:G)", ""]
     ];
-  ////////////////////////////////////////////////////////LEO  
+ 
     var rangoResumen = hojaVista.getRange(1, 12, resumenEncabezados.length, 3);
     rangoResumen.setValues(resumenEncabezados);
-  ////////////////////////////////////////////////////////LEO  
+ 
     // Aplicar formatos
     hojaVista.getRange("L1:M1")
         .setBackground("#424242")
@@ -460,7 +462,6 @@ function configurarTablaResumen(hojaVista) {
     
     // Bordes
     hojaVista.getRange("L1:M4").setBorder(true, true, true, true, true, true);
-    ////////////////////////////////////////////////////////////////////////////////
 }
 function actualizarVistaPrevisiones() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -500,14 +501,12 @@ if (!anno) return; // Solo requerimos el año
     if (datosFiltrados.length > 0) {
         hojaVista.getRange(6, 1, datosFiltrados.length, datosFiltrados[0].length)
             .setValues(datosFiltrados);
-///////////////////////////////////////////////LEO NUEVO
        hojaVista.getRange(6, 8, datosFiltrados.length).setDataValidation(validacionTipoPago)  // Tipo de Pago
             .setBackground("#f0f0f0");  // Light gray background
         hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionFecha)     // Próximo Pago
             .setBackground("#f0f0f0");  // Light gray background
         hojaVista.getRange(6, 6, datosFiltrados.length).setBackground("#f0f0f0");  // Abono column
         hojaVista.getRange(6, 10, datosFiltrados.length).setBackground("#f0f0f0");  // TRATAMIENTO column
-            //////////////////////////LEO
             // Añadir este bloque para aplicar validaciones
         var validacionTipoPago = SpreadsheetApp.newDataValidation()
             .requireValueInList(["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"], true)
@@ -603,9 +602,30 @@ function actualizarTablaResumen(hojaMes) {
     var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
     var rangoPacientesAceptados = hojaMes.getRange(5, 4);
 
+
+//////////////////total cobrado en vista de parrilla
+    // Extraer el nombre del mes y año de la hoja
+    var nombreHoja_cobros = hojaMes.getName();
+    var nombreMes_cobros = nombreHoja_cobros.split(" de ")[0];
+    var anio_cobros = nombreHoja_cobros.includes(" de ") ? nombreHoja_cobros.split(" de ")[1] : new Date().getFullYear().toString();
+
+    // Mapeo de nombres de meses a números
+    var mesesMap_cobros = {
+        "Enero": 1, "Febrero": 2, "Marzo": 3, "Abril": 4, 
+        "Mayo": 5, "Junio": 6, "Julio": 7, "Agosto": 8, 
+        "Septiembre": 9, "Octubre": 10, "Noviembre": 11, "Diciembre": 12
+    };
+
+    var mesNum_cobros = mesesMap_cobros[nombreMes_cobros];
+
+    // Crear las fechas de inicio y fin del mes
+    var fechaInicio_cobros = `DATE(${anio_cobros},${mesNum_cobros},1)`;
+    var fechaFin_cobros = `EOMONTH(DATE(${anio_cobros},${mesNum_cobros},1),0)`;
+
+// Fórmulas
+    rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
     rangoTotalPresupuestado.setFormula(`=SUMIF(J${filaInicio}:J${ultimaFila}, "<>No aceptado", K${filaInicio}:K${ultimaFila})`);
     rangoTotalAceptado.setFormula(`=SUMIF(J${filaInicio}:J${ultimaFila}, "Aceptado", L${filaInicio}:L${ultimaFila})`);
-    rangoTotalCobrado.setFormula(`=SUM('Cobros ${hojaMes.getName()}'!H:H)`); // Ajustar si es necesario
     rangoPtoMedio.setFormula(`=IF(COUNTA(K${filaInicio}:K${ultimaFila})>0, C4/COUNTA(K${filaInicio}:K${ultimaFila}), 0)`);
     rangoPacientesPresupuestados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "<>No aceptado")`);
     rangoPacientesAceptados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "Aceptado")`);
@@ -647,6 +667,15 @@ function onEdit(e) {
             // Si se edita un dato en las filas de datos, actualizar en Staging
             actualizarDatoEnStaging(hoja, rango);
         }
+    }
+
+    ////////VISTA COBROS
+    //////////Detectar cambios en Vista Cobros (nuevo)
+    if (hoja.getName() === "Vista Cobros") {
+        if ((rango.getRow() === 2 || rango.getRow() === 3) && rango.getColumn() === 2) {
+            actualizarVistaCobros();
+        }
+        // No agregamos la otra condición porque no queremos modificar datos
     }
 
 
@@ -696,6 +725,8 @@ function onOpen() {
     ui.createMenu('Cobros')
         .addItem('Ejecutar cobro en fila seleccionada', 'obtenerFilaActiva')
         .addToUi();
+    // Añadir esta línea para inicializar Vista Cobros
+    actualizarDropdownAnosCobros();
 }
 
 ////////////////////////EJECUTAR COBROS 
@@ -733,7 +764,7 @@ function obtenerFilaActiva() {
   if (saldoPendiente > 0 && abono === "") {
     Browser.msgBox("Error: El campo 'Abono' es obligatorio.");
     return;
-  }/////////////////////////////////////////////////////////////////////////////////////////LEO
+  }
   if (saldoPendiente > 0 && datosFila[0][8] === "") {
     Browser.msgBox("Error: El campo 'Proxima Fecha' es obligatorio.");
     return;
@@ -776,6 +807,11 @@ function obtenerFilaActiva() {
         // Actualizar el dropdown de años después de agregar el nuevo registro
     actualizarDropdownAnos();
   }
+
+  //////////////VISTA COBROS
+  actualizarDropdownAnosCobros();
+  actualizarVistaCobros();
+
       var ui = SpreadsheetApp.getUi();
     ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
@@ -1016,11 +1052,203 @@ function aplicarFiltroPorAnio(anio) {
   Logger.log("Aplicando filtro con el año: " + anio);
 
 }
-
-
     
 function balanceGeneral(annio) {
   //var anios = obtenerAniosDeHojas()
   var listaHojas = obtenerHojasPorMesYAnio(annio)
   var sumas = obtenerSumasHojas(listaHojas)
+}
+
+////////VISTA COBROS///////
+function crearVistaCobros(ss) {
+    var hojaVista = ss.getSheetByName("Vista Cobros");
+    if (!hojaVista) {
+        hojaVista = ss.insertSheet("Vista Cobros");
+        configurarVistaCobros(hojaVista, ss);
+    }
+    return hojaVista;
+}
+
+function configurarVistaCobros(hojaVista, ss) {
+    // Configurar título
+    hojaVista.getRange("A1:B1").setValue("Cobros");
+    hojaVista.getRange("A2").setValue("Año:");
+    hojaVista.getRange("A3").setValue("Mes:");
+    
+    // Formato para título y filtros
+    hojaVista.getRange("A1:B1")
+        .setValue("Cobros")
+        .setFontSize(20)
+        .setFontWeight("bold")
+        .setBackground("#00c896")
+        .setHorizontalAlignment("center")
+        .merge();
+
+    hojaVista.getRange("A2")
+        .setValue("Año:")
+        .setFontSize(12)
+        .setFontWeight("bold")
+        .setBackground("#999999")
+        .setFontColor("white");
+
+    hojaVista.getRange("A3")
+        .setValue("Mes:")
+        .setFontSize(12)
+        .setFontWeight("bold")
+        .setBackground("#424242")
+        .setFontColor("white");
+        
+    hojaVista.getRange("B3").setHorizontalAlignment("right");
+
+    // Fechas de control (ocultas)
+    hojaVista.getRange("P1").setValue("Fechas de control");
+    hojaVista.getRange("P2:P3").setValues([["Fecha inicio"], ["Fecha fin"]]);
+    hojaVista.getRange("P2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
+    hojaVista.getRange("P3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EOMONTH(P2,0))');
+    hojaVista.hideColumns(16, 1);
+
+    // Encabezados de la tabla
+    var encabezados = [
+        "ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO"
+    ];
+
+    hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold")
+        .setBackground("#424242")
+        .setFontColor("white")
+        .setHorizontalAlignment("center");
+    
+    // Agregar filtros a los encabezados
+    hojaVista.getRange(5, 1, 1, encabezados.length).createFilter();
+
+    // Configurar formato de columnas
+    hojaVista.getRange("F:F").setNumberFormat("€#,##0.00");
+
+    // Configurar validaciones para filtros
+    actualizarDropdownAnosCobros(); // Necesitas crear esta función
+    
+    // Configurar meses
+    var meses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+        "Ver todo el año"
+    ];
+
+    var validacionMes = SpreadsheetApp.newDataValidation()
+        .requireValueInList(meses)
+        .setAllowInvalid(false)
+        .build();
+    hojaVista.getRange("B3").setDataValidation(validacionMes);
+
+    // Añadir tabla resumen
+    configurarTablaResumenCobros(hojaVista);
+}
+
+function configurarTablaResumenCobros(hojaVista) {
+    var resumenEncabezados = [
+        ["RESUMEN COBROS", "", ""],
+        ["Total Cobrado", "=SUM(F6:F)", ""]
+    ];
+ 
+    var rangoResumen = hojaVista.getRange(1, 12, resumenEncabezados.length, 3);
+    rangoResumen.setValues(resumenEncabezados);
+ 
+    // Aplicar formatos
+    hojaVista.getRange("L1:M1")
+        .setBackground("#424242")
+        .setFontColor("white")
+        .setFontWeight("bold")
+        .merge();
+    
+    hojaVista.getRange("M2").setNumberFormat("€#,##0.00");
+    hojaVista.getRange("L2:M2").setBackground("#f6f6f6");
+    
+    // Bordes
+    hojaVista.getRange("L1:M2").setBorder(true, true, true, true, true, true);
+}
+
+function actualizarDropdownAnosCobros() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaStaging = ss.getSheetByName("Staging Cobros");
+    var hojaVista = ss.getSheetByName("Vista Cobros");
+    
+    if (!hojaStaging || !hojaVista) return;
+    
+    // Obtener todos los datos de Staging Cobros
+    var datos = hojaStaging.getDataRange().getValues();
+    var annos = new Set();
+    
+    // Procesar las fechas para obtener años únicos
+    for (var i = 1; i < datos.length; i++) {
+        if (datos[i][1]) {  // Columna B (índice 1) contiene las fechas de cobro
+            var fecha;
+            if (datos[i][1] instanceof Date) {
+                fecha = datos[i][1];
+            } else {
+                fecha = new Date(datos[i][1]);
+            }
+            
+            if (!isNaN(fecha.getTime())) {
+                annos.add(fecha.getFullYear());
+            }
+        }
+    }
+    
+    // Convertir Set a array ordenado
+    var annosArray = Array.from(annos).sort((a, b) => a - b);
+    var annosArrayString = annosArray.map(String);
+    
+    // Actualizar la validación del dropdown
+    if (annosArrayString.length > 0) {
+        var validacionAnno = SpreadsheetApp.newDataValidation()
+            .requireValueInList(annosArrayString)
+            .setAllowInvalid(false)
+            .build();
+        
+        hojaVista.getRange("B2").setDataValidation(validacionAnno);
+    }
+}
+
+function actualizarVistaCobros() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaVista = ss.getSheetByName("Vista Cobros");
+    var hojaStaging = ss.getSheetByName("Staging Cobros");
+    
+    if (!hojaStaging || !hojaVista) return;
+    
+    var anno = hojaVista.getRange("B2").getValue();
+    var mes = hojaVista.getRange("B3").getValue();
+    
+    if (!anno) return; // Solo requerimos el año
+
+    // Definir fechas de inicio y fin según si hay mes seleccionado
+    var fechaInicio, fechaFin;
+
+    if (mes && mes !== "Ver todo el año") {
+        fechaInicio = hojaVista.getRange("P2").getValue();
+        fechaFin = hojaVista.getRange("P3").getValue();
+    } else {
+        fechaInicio = new Date(anno, 0, 1); // 1 de enero del año seleccionado
+        fechaFin = new Date(anno, 11, 31); // 31 de diciembre del año seleccionado
+    }
+    
+    // Primero, limpiar todos los datos existentes
+    var ultimaFila = hojaVista.getLastRow();
+    if (ultimaFila > 5) { // 5 es la fila del encabezado
+        hojaVista.getRange(6, 1, ultimaFila - 5, hojaVista.getLastColumn()).clearContent();
+    }
+
+    var datosStaging = hojaStaging.getDataRange().getValues();
+    var datosFiltrados = datosStaging.filter((row, index) => {
+        if (index === 0) return false; // Skip header
+        var fecha = new Date(row[1]);
+        return fecha >= fechaInicio && fecha <= fechaFin;
+    });
+    
+    if (datosFiltrados.length > 0) {
+        hojaVista.getRange(6, 1, datosFiltrados.length, datosFiltrados[0].length)
+            .setValues(datosFiltrados);
+    } else {
+        hojaVista.getRange(6, 1).setValue("No hay datos para mostrar");
+    }
 }
