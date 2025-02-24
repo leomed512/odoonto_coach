@@ -1,3 +1,233 @@
+// Función para mantener el contador secuencial
+function getNextTransactionNumber() {
+  const properties = PropertiesService.getScriptProperties();
+  let currentNumber = parseInt(properties.getProperty('LAST_TRANSACTION_NUMBER') || '0');
+  currentNumber++;
+  properties.setProperty('LAST_TRANSACTION_NUMBER', currentNumber.toString());
+  return currentNumber.toString().padStart(6, '0');
+}
+
+// Generador de ID secuencial
+function generateSequentialTransactionId() {
+  const year = new Date().getFullYear().toString().slice(-2);
+  const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
+  const sequence = getNextTransactionNumber();
+  return `${year}${month}${sequence}`;
+}
+
+////// Registro de pacientes
+function guardarDatosEnTabla2() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaFormulario = ss.getSheetByName("Registro de transacciones");
+
+    if (!hojaFormulario) {
+        Logger.log("Error: No se encontró la hoja 'Registro de transacciones'");
+        return;
+    }
+
+    var datos = hojaFormulario.getRange("B3:H21").getValues();
+
+    if (!datos[0][1]) {
+        Browser.msgBox("Error: El campo 'Paciente' es obligatorio.");
+        return;
+    }
+
+    var fechaIngresada = datos[2][1];
+    if (!fechaIngresada) {
+        Browser.msgBox("Error: Debes ingresar una fecha.");
+        return;
+    }
+    if (datos[14][2] === "Aceptado" && !datos[14][3]) {
+    Browser.msgBox("Error: Para pacientes con estado 'Aceptado', la fecha de inicio es obligatoria.");
+    return;
+    }
+
+    // Generar ID de transacción
+    const transactionId = generateSequentialTransactionId();
+
+    var fecha = new Date(fechaIngresada);
+    var nombreMes = fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long" });
+    nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+
+    var hojaMes = ss.getSheetByName(nombreMes) || crearHojaMes(ss, nombreMes);
+    var hojaPrevisiones = ss.getSheetByName("Staging Previsiones");
+    if (!hojaPrevisiones) {
+        hojaPrevisiones = crearHojaPrevisiones(ss);
+    }
+        // Crear o obtener la hoja Vista Previsiones
+    var hojaVista = ss.getSheetByName("Vista Previsiones");
+    if (!hojaVista) {
+        hojaVista = crearVistaPrevisiones(ss);
+    }
+
+    var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
+
+    var nuevaFila = [
+        transactionId,     // ID Transacción
+        fechaIngresada,    // FECHA DE CONTACTO
+        datos[0][1],       // PACIENTE
+        datos[4][1],       // TELÉFONO
+        datos[9][0],       // DOCTOR/A
+        datos[9][1],       // AUXILIAR
+        datos[9][2],       // TIPOLOGÍA PV
+        datos[9][3],       // SUBTIPOLOGÍA
+        datos[9][4],       // PLAN DE CITAS
+        datos[14][2],      // ESTADO
+        datos[14][0],      // IMPORTE PRESUPUESTADO
+        datos[14][1],      // IMPORTE ACEPTADO
+        datos[14][3],      // FECHA DE INICIO
+        datos[18][0]       // OBSERVACIONES
+    ];
+    
+    hojaMes.getRange(filaEscribir, 1, 1, nuevaFila.length).setValues([nuevaFila]);
+
+    actualizarFormatoFila(hojaMes, filaEscribir, datos[14][2]);
+    hojaMes.getRange(filaEscribir, 11).setNumberFormat("€#,##0.00");
+    hojaMes.getRange(filaEscribir, 12).setNumberFormat("€#,##0.00");
+
+    if (datos[14][2] === "Aceptado") {
+        agregarAStagingPrevisiones(hojaPrevisiones, transactionId, datos[14][3], datos[0][1], datos[9][0], datos[14][1]);
+    }
+    actualizarTablaResumen(hojaMes);
+    limpiarFormulario(hojaFormulario);
+     //actualiza filtro de años en la hoja de Balance General
+    actualizarFiltroDeAnios();
+    Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
+    Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
+}
+
+function crearHojaMes(ss, nombreMes) {
+    var hojaMes = ss.insertSheet(nombreMes);
+    var encabezados = [
+        "ID TRANSACCIÓN", "FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", 
+        "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "PLAN DE CITAS", "ESTADO", 
+        "IMPORTE PRESUPUESTADO", "IMPORTE ACEPTADO", "FECHA DE INICIO", "OBSERVACIONES"
+    ];
+
+    hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+    hojaMes.getRange(17, 1, 1, encabezados.length).createFilter();
+    hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
+    return hojaMes;
+}
+
+
+///////PREVISIONES STAGING
+function crearHojaPrevisiones(ss) {
+    var hojaPrevisiones = ss.insertSheet("Staging Previsiones");
+    var encabezados = [
+        "ID TRANSACCIÓN", 
+        "FECHA ACTUAL", 
+        "PACIENTE", 
+        "DOCTOR", 
+        "IMPORTE TOTAL", 
+        "ABONO", 
+        "SALDO PENDIENTE", 
+        "TIPO DE PAGO", 
+        "PRÓXIMO PAGO",
+        "TRATAMIENTO",
+        "ESTADO"////////////////////////////////////////////////LEO
+    ];
+
+    hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold")
+        .setBackground("#424242")
+        .setFontColor("white")
+        .setHorizontalAlignment("center");
+    hojaPrevisiones.autoResizeColumns(1, hojaPrevisiones.getLastColumn());
+    hojaPrevisiones.hideSheet();
+    return hojaPrevisiones;
+}
+
+function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeAceptado) {
+    // Verificar si el ID ya existe
+    if (existeIdEnHoja(hojaPrevisiones, transactionId)) {
+        Logger.log("ID ya existe en Staging Previsiones: " + transactionId);
+        Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
+        return;
+    }
+
+    var ultimaFila = hojaPrevisiones.getLastRow() + 1;
+    var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+////////////////////////////////////////////LEO
+    // Determinar el estado de pago
+    var estadoPago = importeAceptado === 0 ? "PAGADO" : "PENDIENTE";
+
+    var nuevaFila = [
+        transactionId,
+        fechaInicio,
+        paciente,
+        doctor,
+        importeAceptado,
+        "",
+        `=IF(ISBLANK(F${ultimaFila}), E${ultimaFila}, E${ultimaFila}-F${ultimaFila})`,
+        "",
+        "",
+        "",
+        estadoPago
+    ];
+
+    hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
+    
+    // Aplicar formatos
+    hojaPrevisiones.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00");
+    hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00");
+    hojaPrevisiones.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00");
+    hojaPrevisiones.getRange(ultimaFila, 8).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build()
+    );
+    hojaPrevisiones.getRange(ultimaFila, 9).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireDate().build()
+    );
+    actualizarDropdownAnos();
+}
+
+
+function actualizarDatoEnStaging(hojaVista, rango) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaStaging = ss.getSheetByName("Staging Previsiones");
+    
+    var fila = rango.getRow();
+    var columna = rango.getColumn();
+    var idTransaccion = hojaVista.getRange(fila, 1).getValue();
+    var nuevoValor = rango.getValue();
+    
+    // Buscar la fila correspondiente en Staging
+    var datosStaging = hojaStaging.getDataRange().getValues();
+    
+    //////////////////////////////LEO 
+  for (var i = 1; i < datosStaging.length; i++) {
+        if (datosStaging[i][0] === idTransaccion) {
+            hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
+            
+            // Si se modifica el abono
+            if (columna === 6) {
+                var importeTotal = datosStaging[i][4];
+                var saldoPendiente = importeTotal - nuevoValor;
+                hojaStaging.getRange(i + 1, 7).setValue(saldoPendiente);
+                
+                // Actualizar estado de pago
+                var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+                hojaStaging.getRange(i + 1, 11).setValue(estadoPago);
+            }
+        }
+    }
+    
+    // Actualizar en la vista de previsiones
+    if (columna === 6) { // Si se modificó el abono
+        var importeTotal = hojaVista.getRange(fila, 5).getValue();
+        var saldoPendiente = importeTotal - nuevoValor;
+        hojaVista.getRange(fila, 7).setValue(saldoPendiente);
+        
+        // Actualizar columna de estado de pago
+        var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+        hojaVista.getRange(fila, 11).setValue(estadoPago);
+    }
+
+}
+
+// crear hoja de visualizaciones de previsiones
+function crearVistaPrevisiones(ss) {
     var hojaVista = ss.getSheetByName("Vista Previsiones");
     if (!hojaVista) {
         hojaVista = ss.insertSheet("Vista Previsiones");
@@ -391,6 +621,25 @@ function actualizarTablaResumen(hojaMes) {
 function onEdit(e) {
     var hoja = e.source.getActiveSheet();
     var rango = e.range;
+
+
+  // Detectar cambios en la hoja "BALANCE GENERAL"
+    if (hoja.getName() === "BALANCE GENERAL") {
+        if (rango.getA1Notation() === "A2") { // Solo si editan A2
+            var anioSeleccionado = e.value; // Captura el nuevo valor
+            
+            if (anioSeleccionado) {
+                var anioEntero = parseInt(anioSeleccionado, 10); // Convertir a entero
+                if (!isNaN(anioEntero)) { // Verificar que sea un número válido
+                    Logger.log("Año seleccionado en BALANCE GENERAL: " + anioEntero);
+                    balanceGeneral(anioEntero);
+                } else {
+                    Logger.log("El valor seleccionado no es un número válido.");
+                }
+            }
+        }
+  }
+
   if (hoja.getName() === "Vista Previsiones") {
         if ((rango.getRow() === 2 || rango.getRow() === 3) && rango.getColumn() === 2) {
             actualizarVistaPrevisiones();
@@ -662,6 +911,7 @@ function obtenerSumasHojas(hojas) {
     }
   }
 
+
   return resultados;
 }
 
@@ -765,7 +1015,11 @@ function aplicarFiltroPorAnio(anio) {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
   Logger.log("Aplicando filtro con el año: " + anio);
   
+  // Aquí puedes agregar el código que necesites para filtrar datos.
+  // Por ejemplo, podrías ocultar filas que no correspondan al año seleccionado,
+  // o copiar solo los datos relevantes a otra hoja.
 }
+
 
     
 function balanceGeneral(annio) {
