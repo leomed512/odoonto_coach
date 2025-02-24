@@ -841,7 +841,7 @@ function obtenerSumasHojas(hojas) {
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
-  hojaBalance.getRange("B5:H20").clearContent();
+  hojaBalance.getRange("B5:H16").clearContent();
 
   for (let hoja of hojas) {
     try {
@@ -1014,10 +1014,7 @@ function actualizarFiltroDeAnios() {
 function aplicarFiltroPorAnio(anio) {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
   Logger.log("Aplicando filtro con el año: " + anio);
-  
-  // Aquí puedes agregar el código que necesites para filtrar datos.
-  // Por ejemplo, podrías ocultar filas que no correspondan al año seleccionado,
-  // o copiar solo los datos relevantes a otra hoja.
+
 }
 
 
