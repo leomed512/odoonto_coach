@@ -15,7 +15,7 @@ function generateSequentialTransactionId() {
   return `${year}${month}${sequence}`;
 }
 
-////// función principal
+////// Registro de pacientes
 function guardarDatosEnTabla2() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaFormulario = ss.getSheetByName("Registro de transacciones");
@@ -86,11 +86,12 @@ function guardarDatosEnTabla2() {
     hojaMes.getRange(filaEscribir, 12).setNumberFormat("€#,##0.00");
 
     if (datos[14][2] === "Aceptado") {
-        agregarAPacientesAceptados(transactionId, datos[0][1], datos[14][3], datos[14][1], datos[9][0]);
         agregarAStagingPrevisiones(hojaPrevisiones, transactionId, datos[14][3], datos[0][1], datos[9][0], datos[14][1]);
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
+     //actualiza filtro de años en la hoja de Balance General
+    actualizarFiltroDeAnios();
     Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
@@ -115,7 +116,7 @@ function crearHojaMes(ss, nombreMes) {
 function crearHojaPrevisiones(ss) {
     var hojaPrevisiones = ss.insertSheet("Staging Previsiones");
     var encabezados = [
-        "ID TRANSACCIÓN",  // Nueva columna ID
+        "ID TRANSACCIÓN", 
         "FECHA ACTUAL", 
         "PACIENTE", 
         "DOCTOR", 
@@ -221,24 +222,7 @@ function actualizarDatoEnStaging(hojaVista, rango) {
         var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
         hojaVista.getRange(fila, 11).setValue(estadoPago);
     }
-    // for (var i = 1; i < datosStaging.length; i++) {
-    //     if (datosStaging[i][0] === idTransaccion) {
-    //         hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
-    //         break;
-    //     }
-    // }
-    
-    // // Actualizar saldo pendiente si es necesario
-    // if (columna === 6) { // Si se modificó el abono
-    //     var importeTotal = hojaVista.getRange(fila, 5).getValue();
-    //     var saldoPendiente = importeTotal - nuevoValor;
-    //     hojaVista.getRange(fila, 7).setValue(saldoPendiente);
-        
-    //     // // NUEVO: Verificar si el saldo es 0 y registrar en el log
-    //     // if (saldoPendiente === 0) {
-    //     //     Logger.log('Transacción ' + idTransaccion + ' completamente pagada');
-    //     // }//////////////////////////////////////////////LEO BORRAR
-    // }
+
 }
 
 // crear hoja de visualizaciones de previsiones
@@ -253,7 +237,6 @@ function crearVistaPrevisiones(ss) {
 // Configurar hoja de vista de previsiones
 function configurarVistaPrevisiones(hojaVista, ss) {
     //hojaVista.clear();
-////////////////////////////////////////////NUEVO
 
     hojaVista.getRange("A1:B1").setValue("Previsiones");
     hojaVista.getRange("A2").setValue("Año:");
@@ -302,12 +285,12 @@ function configurarVistaPrevisiones(hojaVista, ss) {
       .setVerticalAlignment("middle")
       .setHorizontalAlignment("center");
 
-// Validaciones de año y mes igual que antes...
+// Validaciones de año y mes 
 var hojaStaging = ss.getSheetByName("Staging Previsiones");
 var datos = hojaStaging.getDataRange().getValues();
 var annos = new Set();
 
-// Asegurarnos de procesar correctamente todas las fechas
+// procesar correctamente todas las fechas
 for (var i = 1; i < datos.length; i++) {
     if (datos[i][1]) {
         var fecha;
@@ -328,7 +311,6 @@ for (var i = 1; i < datos.length; i++) {
 
 // Asegurarnos de que el Set se convierte correctamente a array
 var annosArray = Array.from(annos).sort((a, b) => a - b);
- /////////////////////////   
 var annosArrayString = annosArray.map(String);
 console.log(typeof annosArrayString);
 var validacionAnno = SpreadsheetApp.newDataValidation()
@@ -349,7 +331,7 @@ var validacionMes = SpreadsheetApp.newDataValidation()
     .setAllowInvalid(false)
     .build();
 hojaVista.getRange("B3").setDataValidation(validacionMes);
-///////////////////////////////////////////////////////////////////////////////////////////////////////agregar
+
 hojaVista.getRange("P1").setValue("Fechas de control");
 hojaVista.getRange("P2:P3").setValues([["Fecha inicio"], ["Fecha fin"]]);
 hojaVista.getRange("P2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
@@ -357,7 +339,7 @@ hojaVista.getRange("P3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EO
 
 // Ocultar las columnas de control
 hojaVista.hideColumns(16, 1); // Oculta la columna P
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 // Encabezados de la tabla
 var encabezados = [
@@ -370,10 +352,9 @@ hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
     .setBackground("#424242")
     .setFontColor("white")
     .setHorizontalAlignment("center");
-///////////////////////////////////////////////////////////////////////////////////////////////NUEVO
     // Agregar filtros a los encabezados
     hojaVista.getRange(5, 1, 1, encabezados.length).createFilter();
-/////////////////////////////////////////////////////////////////////////////////////////////
+
 // Configurar formato de columnas
 hojaVista.getRange("E:G").setNumberFormat("€#,##0.00");
 
@@ -397,13 +378,6 @@ var hojaStaging = ss.getSheetByName("Staging Previsiones");
 var datosStaging = hojaStaging.getDataRange().getValues();
 var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encabezado
 
-
-////////////////////////////////////////////////////////////////////////LEO ***ELIMINAR
-// Aplicar validaciones solo al rango esperado de datos
-// if (numFilasConDatos > 0) {
-//     hojaVista.getRange(6, 8, numFilasConDatos).setDataValidation(validacionTipoPago);  // Tipo de Pago
-//     hojaVista.getRange(6, 9, numFilasConDatos).setDataValidation(validacionFecha);     // Próximo Pago
-// }
 
     // Añadir tabla resumen (igual que antes)
     configurarTablaResumen(hojaVista);
@@ -486,7 +460,6 @@ function actualizarVistaPrevisiones() {
     var anno = hojaVista.getRange("B2").getValue();
     var mes = hojaVista.getRange("B3").getValue();
     
- /////////////////////////////////NUEVO
 if (!anno) return; // Solo requerimos el año
 
     // Definir fechas de inicio y fin según si hay mes seleccionado
@@ -506,7 +479,6 @@ if (!anno) return; // Solo requerimos el año
     if (ultimaFila > 5) { // 5 es la fila del encabezado
         hojaVista.getRange(6, 1, ultimaFila - 5, hojaVista.getLastColumn()).clearContent();
     }
-///////////////////////////////////////////////
 
     var datosStaging = hojaStaging.getDataRange().getValues();
     var datosFiltrados = datosStaging.filter((row, index) => {
@@ -558,16 +530,6 @@ function existeIdEnHoja(hoja, id) {
     return duplicado;
 }
 
-
-///// agregar pacientes a staging de previsiones y cobros
-function agregarAPacientesAceptados(transactionId, paciente, fecha, importe, doctor) {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    
-    // Agregar a Staging Previsiones (la lógica de creación y validación ya está en esta función)
-    agregarAStagingPrevisiones(ss.getSheetByName("Staging Previsiones"), transactionId, fecha, paciente, doctor, importe);
-    
-    Logger.log("Paciente agregado correctamente a Staging Previsiones");
-}
 
 //// Actualizar lo que sucede al cambiar de estado en parrilla ppal
 function actualizarFormatoFila(hoja, fila, estado) {
@@ -684,7 +646,6 @@ function onEdit(e) {
             var importe = hoja.getRange(fila, 12).getValue(); 
 
             // Agregar a Cobros y Previsiones con el ID
-            agregarAPacientesAceptados(transactionId, paciente, fecha, importe, doctor);
             agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fecha, paciente, doctor, importe);
           
         }
@@ -700,7 +661,7 @@ function limpiarFormulario(hoja) {
     celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
  
-///////////////////////////NUEVO
+///////////////////////////crear botón en menú para cobro
 function onOpen() {
     var ui = SpreadsheetApp.getUi();
     ui.createMenu('Cobros')
@@ -788,4 +749,246 @@ function obtenerFilaActiva() {
       var ui = SpreadsheetApp.getUi();
     ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
+}
+
+//////////////BALANCE GENERAL/////////////////////
+    function obtenerHojasPorMesYAnio(anio) {
+      // Lista de meses válidos
+      const mesesValidos = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ];
+      
+      // Obtener todas las hojas
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var todasLasHojas = ss.getSheets();
+    
+      // Filtrar las hojas que cumplan el patrón
+      var hojasValidas = todasLasHojas.filter(hoja => {
+        var nombreHoja = hoja.getName();
+    
+        // Patrón esperado: "Mes de Año"
+        var patronMes = new RegExp(`^(${mesesValidos.join('|')}) de ${anio}$`);
+        var coincide = patronMes.test(nombreHoja);
+    
+        return coincide;
+      });
+      
+      // Ordenar las hojas según el orden de los meses
+      hojasValidas.sort((a, b) => {
+        // Extraer solo el nombre del mes (todo antes de " de ")
+        var mesA = a.getName().split(" de ")[0];
+        var mesB = b.getName().split(" de ")[0];
+        Logger.log("Comparando: " + mesA + " con " + mesB);
+        return mesesValidos.indexOf(mesA) - mesesValidos.indexOf(mesB);
+      });
+    
+      hojasValidas.forEach(hoja => {
+        Logger.log(hoja.getName());
+      });
+      
+      return hojasValidas;
+    }
+  
+function obtenerSumasHojas(hojas) {
+  var resultados = Object.create(null);
+  
+  // Verifica el mapeo de filas
+  const mesAFila = {
+    "Enero": 5,
+    "Febrero": 6,
+    "Marzo": 7,
+    "Abril": 8,
+    "Mayo": 9,
+    "Junio": 10,
+    "Julio": 11,
+    "Agosto": 12,
+    "Septiembre": 13,
+    "Octubre": 14,
+    "Noviembre": 15,
+    "Diciembre": 16
+  };
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
+  hojaBalance.getRange("B5:H20").clearContent();
+
+  for (let hoja of hojas) {
+    try {
+      var nombreHoja = hoja.getName();
+      var mes = nombreHoja.split(" de ")[0];
+      Logger.log('Procesando: ' + nombreHoja + ' (mes: ' + mes + ')');
+
+      var suma = 0;
+      var suma_pre = 0;
+      var pac_acep = 0;
+
+      var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
+      var startRow = 18; // Primera fila de interés
+      if (lastRow >= startRow) {
+        var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
+        var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
+        var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
+        var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
+
+        var n_pacientes = pacientes.filter(String).length;
+        var n_presupuesto = presupuestos.filter(String).length;
+      } else {
+        var valores = []; // Si no hay datos, asignamos un array vacío
+      }
+
+      var abonoMes = sumarAbonosPorMes(mes, hoja);
+
+      for (let aceptado of aceptados) {
+        if (aceptado[0] && aceptado[0] === 'Aceptado') {
+          pac_acep += 1;
+        }
+      }
+
+      for (let presupuesto of presupuestos) {
+        if (presupuesto[0] && typeof presupuesto[0] === 'number') {
+          suma_pre += presupuesto[0];
+        }
+      }
+
+      for (let valor of valores) {
+        if (valor[0] && typeof valor[0] === 'number') {
+          suma += valor[0];
+        }
+      }
+
+      resultados[nombreHoja] = Number(suma);
+      
+      var filaDestino = mesAFila[mes];
+      Logger.log(`Mes: ${mes}, Fila destino: ${filaDestino}, Suma: ${suma}`);
+      
+      if (filaDestino) {
+        hojaBalance.getRange(filaDestino, 7).setValue(suma);
+        hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
+        hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
+        hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
+        hojaBalance.getRange(filaDestino, 6).setValue(suma_pre/n_presupuesto);
+        hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
+        hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
+        Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes}`);
+      } else {
+        Logger.log(`No se encontró fila destino para el mes: ${mes}`);
+      }
+
+    } catch (error) {
+      Logger.log(`Error en ${nombreHoja}: ${error}`);
+      resultados[nombreHoja] = 0;
+    }
+  }
+
+  return resultados;
+}
+
+function sumarAbonosPorMes(nombreMes) {
+
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Staging Cobros");
+  if (!hoja) {
+    return "La hoja 'Staging Cobros' no existe.";
+  }
+
+  var datos = hoja.getDataRange().getValues();
+  
+  // Mapeo de nombres de meses a números (Enero = 1, Febrero = 2, etc.)
+  var meses = {
+    "Enero": 1, "Febrero": 2, "Marzo": 3, "Abril": 4, "Mayo": 5, "Junio": 6,
+    "Julio": 7, "Agosto": 8, "Septiembre": 9, "Octubre": 10, "Noviembre": 11, "Diciembre": 12
+  };
+
+  var mesBuscado = meses[nombreMes]; // Obtener el número del mes
+
+  if (!mesBuscado) {
+    return "Mes no válido. Usa nombres como 'Enero', 'Febrero', etc.";
+  }
+
+  var suma = 0;
+
+  for (var i = 1; i < datos.length; i++) { // Empezamos en 1 para ignorar la cabecera
+    var fecha = new Date(datos[i][1]); // FECHA DE COBRO está en la columna B (índice 1)
+    var monto = parseFloat(datos[i][5]); // MONTO está en la columna F (índice 5)
+
+    if (!isNaN(fecha.getTime()) && fecha.getMonth() + 1 === mesBuscado) { 
+      suma += isNaN(monto) ? 0 : monto;
+    }
+  }
+
+  return suma;
+}
+
+function obtenerAniosDeHojas() {
+  // Lista de meses válidos
+  const mesesValidos = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+
+  // Expresión regular para buscar hojas con el patrón "Mes de Año"
+  const patron = new RegExp(`^(${mesesValidos.join('|')}) de (\\d{4})$`);
+
+  // Obtener todas las hojas
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var todasLasHojas = ss.getSheets();
+
+  // Set para almacenar años únicos
+  var aniosUnicos = new Set();
+
+  // Recorrer las hojas y extraer los años
+  todasLasHojas.forEach(hoja => {
+    var nombreHoja = hoja.getName();
+    var coincidencia = nombreHoja.match(patron);
+    if (coincidencia) {
+      aniosUnicos.add(parseInt(coincidencia[2])); // Convertir a número
+    }
+  });
+
+  // Convertir el Set a lista, ordenarla de menor a mayor y devolverla
+  var listaAnios = Array.from(aniosUnicos).sort((a, b) => a - b);
+  Logger.log(listaAnios);
+  return listaAnios;
+}
+
+function actualizarFiltroDeAnios() {
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
+  if (!hoja) {
+    Logger.log("La hoja 'BALANCE GENERAL' no existe.");
+    return;
+  }
+
+  // Obtener la lista de años únicos ordenados
+  var anios = obtenerAniosDeHojas(); // Esta es la función que hicimos antes
+
+  if (anios.length === 0) {
+    Logger.log("No hay años para agregar al filtro.");
+    return;
+  }
+
+  // Crear la validación de datos (menú desplegable)
+  var rango = hoja.getRange("A2");
+  var reglaValidacion = SpreadsheetApp.newDataValidation()
+    .requireValueInList(anios, true)
+    .setAllowInvalid(false) // No permite valores fuera de la lista
+    .build();
+
+  // Aplicar la validación a la celda A2
+  rango.setDataValidation(reglaValidacion);
+  Logger.log("Filtro de años actualizado con: " + anios);
+}
+
+
+
+function aplicarFiltroPorAnio(anio) {
+  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
+  Logger.log("Aplicando filtro con el año: " + anio);
+  
+}
+
+    
+function balanceGeneral(annio) {
+  //var anios = obtenerAniosDeHojas()
+  var listaHojas = obtenerHojasPorMesYAnio(annio)
+  var sumas = obtenerSumasHojas(listaHojas)
 }
