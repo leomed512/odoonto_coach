@@ -146,7 +146,7 @@ function crearHojaPrevisiones(ss) {
 }
 
 function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeAceptado) {
-    // Verificar si el ID ya existe
+    //Verificar si el ID ya existe
     if (existeIdEnHoja(hojaPrevisiones, transactionId)) {
         Logger.log("ID ya existe en Staging Previsiones: " + transactionId);
         Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
@@ -565,7 +565,7 @@ function existeIdEnHoja(hoja, id) {
     var datos = hoja.getRange("A:A").getValues();
     var duplicado = datos.some(row => row[0] === id);
     
-    if (duplicado) {
+    if (duplicado && hojaActiva.getName() !== "Vista Previsiones") {
         Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
     }
     
@@ -696,10 +696,11 @@ function onEdit(e) {
   if (hoja.getName() === "Vista Previsiones") {
         if ((rango.getRow() === 2 || rango.getRow() === 3) && rango.getColumn() === 2) {
             actualizarVistaPrevisiones();
-        } else if (rango.getRow() >= 6) {
-            // Si se edita un dato en las filas de datos, actualizar en Staging
-            actualizarDatoEnStaging(hoja, rango);
-        }
+        } 
+        // else if (rango.getRow() >= 6) {
+        //     // Si se edita un dato en las filas de datos, actualizar en Staging
+        //     actualizarDatoEnStaging(hoja, rango);
+        // }
     }
 
     ////////VISTA COBROS
@@ -712,7 +713,7 @@ function onEdit(e) {
     }
 
 
-    if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros")) {
+    if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros")&& hoja.getName() !== "Vista Previsiones") {
         var estadoNuevo = rango.getValue();
         var fila = rango.getRow();
         if (fila < 18) return;
@@ -755,11 +756,284 @@ function limpiarFormulario(hoja) {
 ///////////////////////////crear botón en menú para cobro
 function onOpen() {
     var ui = SpreadsheetApp.getUi();
+    // Crear un nuevo menú para ACTUALIZAR y CREAR previsiones
+    ui.createMenu('Previsiones')
+        .addItem('Actualizar Previsión', 'actualizarPrevisionManual')
+        .addItem('Agregar Previsión', 'agregarPrevisionManual')
+        .addToUi();
+
     ui.createMenu('Cobros')
         .addItem('Ejecutar cobro en fila seleccionada', 'obtenerFilaActiva')
         .addToUi();
+        
     // Añadir esta línea para inicializar Vista Cobros
     actualizarDropdownAnosCobros();
+}
+///////////////////////////agregar previsión desde vista 
+function agregarPrevisionManual() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaVista = ss.getActiveSheet();
+    
+    // Verificar que estamos en la hoja correcta
+    if (hojaVista.getName() !== "Vista Previsiones") {
+        Browser.msgBox("Error", "Por favor, seleccione una fila en la hoja 'Vista Previsiones'", Browser.Buttons.OK);
+        return;
+    }
+    
+    var fila = hojaVista.getActiveCell().getRow();
+    
+    // Verificar que la fila seleccionada está en la zona de datos (después de la fila 5)
+    if (fila <= 5) {
+        Browser.msgBox("Error", "Por favor, seleccione una fila de datos (después de la fila 5)", Browser.Buttons.OK);
+        return;
+    }
+    
+    // Obtener los datos de la fila seleccionada
+    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
+    
+    // Verificar que los datos mínimos necesarios estén presentes
+    if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4] || !datosFila[5] || !datosFila[9]) {
+        Browser.msgBox("Error", "Datos incompletos", Browser.Buttons.OK);
+        return;
+    }
+    
+    // Verificar si el ID ya existe en la hoja Staging Previsiones
+    var hojaStaging = ss.getSheetByName("Staging Previsiones");
+    if (!hojaStaging) {
+        hojaStaging = crearHojaPrevisiones(ss);
+    }
+    
+   
+   // Extraer los datos necesarios para llamar a agregarAStagingPrevisiones
+    var transactionId = datosFila[0]; // ID Transacción
+    var cita = datosFila[9]
+    var fechaInicio = cita || new Date(); // Fecha, usar la fecha actual si está vacía
+    var paciente = datosFila[2]; // Paciente
+    var doctor = datosFila[3]; // Doctor
+    var importeAceptado = datosFila[4]; // Importe Total
+    var prevEsperada = datosFila[5];
+    var prevPagada = datosFila[6];
+    var saldoPendiente = datosFila[7];
+    var tipo_pago = datosFila[8];
+    var treatment = datosFila[10];
+
+
+    
+    // Agregamos directamente a la hoja Staging Previsiones sin usar la función existente
+    // ya que esa función verifica duplicados y no queremos esa verificación en este caso
+    var ultimaFila = hojaStaging.getLastRow() + 1;
+    var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+    // Determinar el estado de pago
+    var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+
+    var nuevaFila = [
+        transactionId,
+        fechaInicio,
+        paciente,
+        doctor,
+        importeAceptado,
+        prevEsperada, // PREV ESPERADA (ahora después de PREV TOTAL)
+        prevPagada,
+        saldoPendiente, // calculo eliminado para SALDO
+        tipo_pago,
+        cita,
+        treatment,
+        estadoPago
+    ];
+
+
+    hojaStaging.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
+    
+    // Aplicar formatos
+    hojaStaging.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00");
+    hojaStaging.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00"); // Formato para PREV ESPERADA
+    hojaStaging.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00"); // Ahora PREV PAGADA
+    hojaStaging.getRange(ultimaFila, 8).setNumberFormat("€#,##0.00"); // Ahora SALDO PENDIENTE
+    
+    hojaStaging.getRange(ultimaFila, 9).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build()
+    );
+    hojaStaging.getRange(ultimaFila, 10).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireDate().build()
+    );
+    actualizarDropdownAnos();
+    
+    // Actualizar la vista después de añadir el nuevo registro
+    actualizarVistaPrevisiones();
+    
+    // Mostrar mensaje de éxito
+    Browser.msgBox("Éxito", "La Previsión adicional se ha agregado correctamente", Browser.Buttons.OK);
+}
+
+////// actualizar previsión (para fijar cita de previsión apropiadamente)
+function actualizarPrevisionManual() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaVista = ss.getActiveSheet();
+    
+    // Verificar que estamos en la hoja correcta
+    if (hojaVista.getName() !== "Vista Previsiones") {
+        Browser.msgBox("Error", "Por favor, seleccione una fila en la hoja 'Vista Previsiones'", Browser.Buttons.OK);
+        return;
+    }
+    
+    var fila = hojaVista.getActiveCell().getRow();
+    
+    // Verificar que la fila seleccionada está en la zona de datos (después de la fila 5)
+    if (fila <= 5) {
+        Browser.msgBox("Error", "Por favor, seleccione una fila de datos (después de la fila 5)", Browser.Buttons.OK);
+        return;
+    }
+    
+    // Obtener los datos de la fila seleccionada
+    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
+    
+    // Verificar que los datos mínimos necesarios estén presentes
+    if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4] || !datosFila[5] || !datosFila[9]) {
+        Browser.msgBox("Error", "Datos incompletos", Browser.Buttons.OK);
+        return;
+    }
+    
+    // Verificar si el ID ya existe en la hoja Staging Previsiones
+    var hojaStaging = ss.getSheetByName("Staging Previsiones");
+    if (!hojaStaging) {
+        hojaStaging = crearHojaPrevisiones(ss);
+    }
+  ////////////////////////////////////// validación 
+    // Datos para identificar el registro específico
+    var transactionId = datosFila[0]; // ID Transacción
+    var dataStaging = hojaStaging.getDataRange().getValues();
+    var filaEncontrada = -1;
+
+ for (var i = 1; i < dataStaging.length; i++) {
+        // Primera verificación por ID
+        if (dataStaging[i][0] === transactionId) {
+            // Verificaciones adicionales para encontrar el registro exacto
+            // Comparamos paciente (índice 2) y doctor (índice 3)
+            if (dataStaging[i][2] === datosFila[2] && 
+                dataStaging[i][3] === datosFila[3] && 
+                dataStaging[i][4] === datosFila[4]) {
+                
+                // Verificación adicional con la fecha (si es consistente entre vistas)
+                // Esto puede necesitar ajustes si las fechas se manejan de manera diferente
+                var fechaStaging = dataStaging[i][1];
+                var fechaVista = datosFila[1];
+                
+                // Compara fechas como strings si son objetos Date
+                var fechaStagingStr = fechaStaging instanceof Date ? 
+                    Utilities.formatDate(fechaStaging, Session.getScriptTimeZone(), "yyyy-MM-dd") : 
+                    String(fechaStaging);
+                    
+                var fechaVistaStr = fechaVista instanceof Date ? 
+                    Utilities.formatDate(fechaVista, Session.getScriptTimeZone(), "yyyy-MM-dd") : 
+                    String(fechaVista);
+                
+                if (fechaStagingStr === fechaVistaStr) {
+                    filaEncontrada = i + 1; // +1 porque las filas empiezan en 1, no en 0
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Si no se ha encontrado con criterios estrictos, preguntar al usuario si desea actualizar el primer registro con ese ID
+    if (filaEncontrada === -1) {
+        // Buscar al menos el primer registro con ese ID
+        for (var i = 1; i < dataStaging.length; i++) {
+            if (dataStaging[i][0] === transactionId) {
+                var respuesta = Browser.msgBox("Confirmar actualización", 
+                    "No se encontró una coincidencia exacta. ¿Desea actualizar el primer registro con ID: " + 
+                    transactionId + " para el paciente " + dataStaging[i][2] + "?", 
+                    Browser.Buttons.YES_NO);
+                
+                if (respuesta === Browser.Buttons.YES) {
+                    filaEncontrada = i + 1;
+                }
+                break;
+            }
+        }
+    }
+    
+    if (filaEncontrada === -1) {
+        Browser.msgBox("Operación cancelada", "No se actualizó ningún registro", Browser.Buttons.OK);
+        return;
+    }
+  ////////////////////////////////////////  
+   
+    // Extraer los datos necesarios para llamar a agregarAStagingPrevisiones
+    // var transactionId = datosFila[0]; // ID Transacción
+    var cita = datosFila[9]
+    // var fechaInicio = cita || new Date(); // Fecha, usar la fecha actual si está vacía
+        var fechaInicio = cita || dataStaging[filaEncontrada-1][1]; // Mantener fecha original si no hay cita
+
+    var paciente = datosFila[2]; // Paciente
+    var doctor = datosFila[3]; // Doctor
+    var importeAceptado = datosFila[4]; // Importe Total
+    var prevEsperada = datosFila[5];
+    var prevPagada = datosFila[6];
+    var saldoPendiente = datosFila[7];
+    var tipo_pago = datosFila[8];
+    var treatment = datosFila[10];
+
+
+    
+    // Agregamos directamente a la hoja Staging Previsiones sin usar la función existente
+    // ya que esa función verifica duplicados y no queremos esa verificación en este caso
+    var ultimaFila = hojaStaging.getLastRow() + 1;
+    var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+    // Determinar el estado de pago
+    var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+
+    // var nuevaFila = [
+    //     transactionId,
+    //     fechaInicio,
+    //     paciente,
+    //     doctor,
+    //     importeAceptado,
+    //     prevEsperada, // PREV ESPERADA (ahora después de PREV TOTAL)
+    //     prevPagada,
+    //     saldoPendiente, // calculo eliminado para SALDO
+    //     tipo_pago,
+    //     cita,
+    //     treatment,
+    //     estadoPago
+    // ];
+    // Crear el array con los datos actualizados
+    var datosActualizados = [
+        transactionId,
+        fechaInicio,
+        paciente,
+        doctor,
+        importeAceptado,
+        prevEsperada,
+        prevPagada,
+        saldoPendiente,
+        tipo_pago,
+        cita,
+        treatment,
+        estadoPago
+    ];
+    // hojaStaging.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
+        hojaStaging.getRange(filaEncontrada, 1, 1, datosActualizados.length).setValues([datosActualizados]);
+
+    // Aplicar formatos
+    hojaStaging.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00");
+    hojaStaging.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00"); // Formato para PREV ESPERADA
+    hojaStaging.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00"); // Ahora PREV PAGADA
+    hojaStaging.getRange(ultimaFila, 8).setNumberFormat("€#,##0.00"); // Ahora SALDO PENDIENTE
+    
+    hojaStaging.getRange(ultimaFila, 9).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build()
+    );
+    hojaStaging.getRange(ultimaFila, 10).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireDate().build()
+    );
+    actualizarDropdownAnos();
+    
+    // Actualizar la vista después de añadir el nuevo registro
+    actualizarVistaPrevisiones();
+    
+    // Mostrar mensaje de éxito
+    Browser.msgBox("Éxito", "La Previsión se ha actualizado correctamente", Browser.Buttons.OK);
 }
 
 ////////////////////////EJECUTAR COBROS 
