@@ -126,6 +126,7 @@ function crearHojaPrevisiones(ss) {
         "PACIENTE", 
         "DOCTOR", 
         "PREV TOTAL", /// ANTES IMPORTE TOTAL
+        "PREV ESPERADA", // NUEVA COLUMNA (ahora después de PREV TOTAL)
         "PREV PAGADA", // ANTES ABONO
         "SALDO PENDIENTE", 
         "TIPO DE PAGO", 
@@ -163,8 +164,9 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
         paciente,
         doctor,
         importeAceptado,
+        "", // PREV ESPERADA (ahora después de PREV TOTAL)
         "",
-        `=IF(ISBLANK(F${ultimaFila}), E${ultimaFila}, E${ultimaFila}-F${ultimaFila})`,
+        "", // calculo eliminado para SALDO
         "",
         "",
         "",
@@ -173,14 +175,16 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
 
     hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
     
-    // Aplicar formatos
+   // Aplicar formatos
     hojaPrevisiones.getRange(ultimaFila, 5).setNumberFormat("€#,##0.00");
-    hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00");
-    hojaPrevisiones.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00");
-    hojaPrevisiones.getRange(ultimaFila, 8).setDataValidation(
+    hojaPrevisiones.getRange(ultimaFila, 6).setNumberFormat("€#,##0.00"); // Formato para PREV ESPERADA
+    hojaPrevisiones.getRange(ultimaFila, 7).setNumberFormat("€#,##0.00"); // Ahora PREV PAGADA
+    hojaPrevisiones.getRange(ultimaFila, 8).setNumberFormat("€#,##0.00"); // Ahora SALDO PENDIENTE
+    
+    hojaPrevisiones.getRange(ultimaFila, 9).setDataValidation(
         SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build()
     );
-    hojaPrevisiones.getRange(ultimaFila, 9).setDataValidation(
+    hojaPrevisiones.getRange(ultimaFila, 10).setDataValidation(
         SpreadsheetApp.newDataValidation().requireDate().build()
     );
     actualizarDropdownAnos();
@@ -204,29 +208,29 @@ function actualizarDatoEnStaging(hojaVista, rango) {
         if (datosStaging[i][0] === idTransaccion) {
             hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
             
-            // Si se modifica el abono O PREV ABONADA
-            if (columna === 6) {
-                var importeTotal = datosStaging[i][4];
-                var saldoPendiente = importeTotal - nuevoValor;
-                hojaStaging.getRange(i + 1, 7).setValue(saldoPendiente);
+            // Si se modifica el abono O PREV ABONADA ////////////////////////////////////////////////// comentado para evitar cálculo automático de SALDO PENDIENTE Y ESTADO
+            // if (columna === 7) {
+            //     var importeTotal = datosStaging[i][4];
+            //     var saldoPendiente = importeTotal - nuevoValor;
+            //     hojaStaging.getRange(i + 1, 8).setValue(saldoPendiente);
                 
-                // Actualizar estado de pago
-                var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
-                hojaStaging.getRange(i + 1, 11).setValue(estadoPago);
-            }
+            //     // Actualizar estado de pago
+            //     var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+            //     hojaStaging.getRange(i + 1, 12).setValue(estadoPago);
+            // }
         }
     }
     
-    // Actualizar en la vista de previsiones
-    if (columna === 6) { // Si se modificó el abono O PREV ABONADA
-        var importeTotal = hojaVista.getRange(fila, 5).getValue();
-        var saldoPendiente = importeTotal - nuevoValor;
-        hojaVista.getRange(fila, 7).setValue(saldoPendiente);
+    // Actualizar en la vista de previsiones /////////////////// comentado para evitar cálculo automático de SALDO PENDIENTE Y ESTADO
+    // if (columna === 7) { // Si se modificó el abono O PREV ABONADA
+    //     var importeTotal = hojaVista.getRange(fila, 5).getValue();
+    //     var saldoPendiente = importeTotal - nuevoValor;
+    //     hojaVista.getRange(fila, 8).setValue(saldoPendiente);
         
-        // Actualizar columna de estado de pago
-        var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
-        hojaVista.getRange(fila, 11).setValue(estadoPago);
-    }
+    //     // Actualizar columna de estado de pago
+    //     var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+    //     hojaVista.getRange(fila, 12).setValue(estadoPago);
+    // }
 
 }
 
@@ -291,7 +295,7 @@ function configurarVistaPrevisiones(hojaVista, ss) {
 
       hojaVista.getRange(3, 5, 1, 6).merge().setValue("Selecciona la fila completa de la transacción en el panel derecho, ve a la barra de Menú > Cobros > Ejecutar cobro en fila seleccionada")
       .setFontSize(10)
-      .setBackground("#b8b6b6")
+      .setBackground("#98e0fa")
       .setFontColor("#080808")
       .setWrap(true)
       .setVerticalAlignment("middle")
@@ -344,21 +348,22 @@ var validacionMes = SpreadsheetApp.newDataValidation()
     .build();
 hojaVista.getRange("B3").setDataValidation(validacionMes);
 
-hojaVista.getRange("P1").setValue("Fechas de control");
-hojaVista.getRange("P2:P3").setValues([["Fecha inicio"], ["Fecha fin"]]);
-hojaVista.getRange("P2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
-hojaVista.getRange("P3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EOMONTH(P2,0))');
+hojaVista.getRange("Q1").setValue("Fechas de control");
+hojaVista.getRange("Q2:Q3").setValues([["Fecha inicio"], ["Fecha fin"]]);
+hojaVista.getRange("Q2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
+hojaVista.getRange("Q3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EOMONTH(Q2,0))');
 
 // Ocultar las columnas de control
-hojaVista.hideColumns(16, 1); // Oculta la columna P
+hojaVista.hideColumns(17, 1); // Oculta la columna P
 
 
 // Encabezados de la tabla
 var encabezados = [
     "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "PREV TOTAL",///ANTES IMPORTE TOTAL
+    "PREV ESPERADA", // NUEVA COLUMNA (después de PREV TOTAL)
     "PREV PAGADA",//ANTES ABONO 
     "SALDO PENDIENTE", "TIPO DE PAGO", "CITA", // ANTES PROXIMO PAGO
-     "TRATAMIENTO", "ESTADO / € TOTALES" // ANTES ESTADO
+    "TRATAMIENTO", "ESTADO / € TOTALES" // ANTES ESTADO
 ];
 
 hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -371,7 +376,7 @@ hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
     
 
 // Configurar formato de columnas
-hojaVista.getRange("E:G").setNumberFormat("€#,##0.00");
+hojaVista.getRange("E:H").setNumberFormat("€#,##0.00");
 
 // Validación para tipo de pago ///////////////////////////////////////////////////////////////////////////////////////// variables sin usar
 var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
@@ -404,10 +409,10 @@ var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encab
     
     //  autoResize solo para las demás columnas de la tabla
     hojaVista.autoResizeColumns(1, 4); // Columnas A-D
-    hojaVista.autoResizeColumn(11);    // Columna K
+    hojaVista.autoResizeColumn(12);    // Columna K
     
     // margen adicional a cada columna excepto las de instrucciones
-    for (var i = 1; i <= 11; i++) {
+    for (var i = 1; i <= 12; i++) {
       // Saltamos las columnas E a J (5 a 10)
       if (i < 5 || i > 10) {
         var anchoActual = hojaVista.getColumnWidth(i);
@@ -462,29 +467,31 @@ function configurarTablaResumen(hojaVista) {
     var resumenEncabezados = [
         ["RESUMEN", "", ""],
         ["Total Importe", "=SUM(E6:E)", ""],
-        ["Previsión abonada", "=SUM(F6:F)", ""], // ANTES TOTAL ABONADO
-        ["Total Pendiente", "=SUM(G6:G)", ""]
+        ["Previsión esperada", "=SUM(F6:F)", ""], // Nueva línea para PREV ESPERADA
+        ["Previsión abonada", "=SUM(G6:G)", ""], // Ahora referencia a columna G
+        ["Total Pendiente", "=SUM(H6:H)", ""]    // Ahora referencia a columna H
     ];
  
-    var rangoResumen = hojaVista.getRange(1, 12, resumenEncabezados.length, 3);
+    var rangoResumen = hojaVista.getRange(1, 14, resumenEncabezados.length, 3);
     rangoResumen.setValues(resumenEncabezados);
  
     // Aplicar formatos
-    hojaVista.getRange("L1:M1")
+    hojaVista.getRange("N1:O1")
         .setBackground("#424242")
         .setFontColor("white")
         .setFontWeight("bold")
         .merge();
     
-    hojaVista.getRange("M2:M4").setNumberFormat("€#,##0.00");
+    hojaVista.getRange("O2:O5").setNumberFormat("€#,##0.00"); // Ahora 5 filas para incluir PREV ESPERADA
     
     // Estilos alternados
-    hojaVista.getRange("L2:M2").setBackground("#f6f6f6");
-    hojaVista.getRange("L3:M3").setBackground("#e2e2e2");
-    hojaVista.getRange("L4:M4").setBackground("#f6f6f6");
+    hojaVista.getRange("N2:O2").setBackground("#f6f6f6");
+    hojaVista.getRange("N3:O3").setBackground("#e2e2e2");
+    hojaVista.getRange("N4:O4").setBackground("#f6f6f6");
+    hojaVista.getRange("N5:O5").setBackground("#e2e2e2"); // Nueva fila
     
     // Bordes
-    hojaVista.getRange("L1:M4").setBorder(true, true, true, true, true, true);
+    hojaVista.getRange("N1:O5").setBorder(true, true, true, true, true, true); 
 }
 function actualizarVistaPrevisiones() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -500,9 +507,9 @@ if (!anno) return; // Solo requerimos el año
     var fechaInicio, fechaFin;
 
         if (mes && mes !== "Ver todo el año") {
-        // Si hay mes seleccionado y no es "Ver todo el año", usar las fechas calculadas en P2 y P3
-        fechaInicio = hojaVista.getRange("P2").getValue();
-        fechaFin = hojaVista.getRange("P3").getValue();
+        // Si hay mes seleccionado y no es "Ver todo el año", usar las fechas calculadas en Q2 y Q3
+        fechaInicio = hojaVista.getRange("Q2").getValue();
+        fechaFin = hojaVista.getRange("Q3").getValue();
     } else {
         // Si solo hay año o se seleccionó "Ver todo el año"
         fechaInicio = new Date(anno, 0, 1); // 1 de enero del año seleccionado
@@ -524,12 +531,15 @@ if (!anno) return; // Solo requerimos el año
     if (datosFiltrados.length > 0) {
         hojaVista.getRange(6, 1, datosFiltrados.length, datosFiltrados[0].length)
             .setValues(datosFiltrados);
-       hojaVista.getRange(6, 8, datosFiltrados.length).setDataValidation(validacionTipoPago)  // Tipo de Pago
+       hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionTipoPago)  // Tipo de Pago
             .setBackground("#f0f0f0");  // Light gray background
-        hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionFecha)     // Próximo Pago O CITA
+        hojaVista.getRange(6, 10, datosFiltrados.length).setDataValidation(validacionFecha)     // Próximo Pago O CITA
             .setBackground("#f0f0f0");  // Light gray background
-        hojaVista.getRange(6, 6, datosFiltrados.length).setBackground("#f0f0f0");  // Abono column O PREV ABONADA
-        hojaVista.getRange(6, 10, datosFiltrados.length).setBackground("#f0f0f0");  // TRATAMIENTO column
+        hojaVista.getRange(6, 7, datosFiltrados.length).setBackground("#98e0fa");  // Abono column O PREV ABONADA
+        hojaVista.getRange(6, 6, datosFiltrados.length).setBackground("#f0f0f0");  //  PREV ESPERADA
+
+        hojaVista.getRange(6, 11, datosFiltrados.length).setBackground("#f0f0f0");  // TRATAMIENTO column
+
             // Añadir este bloque para aplicar validaciones
         var validacionTipoPago = SpreadsheetApp.newDataValidation()
             .requireValueInList(["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"], true)
@@ -542,8 +552,8 @@ if (!anno) return; // Solo requerimos el año
             .setHelpText('Por favor, ingrese una fecha válida')
             .build();
         // Aplicar validaciones a las columnas correspondientes
-        hojaVista.getRange(6, 8, datosFiltrados.length).setDataValidation(validacionTipoPago);  // Tipo de Pago
-        hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionFecha);     // Próximo Pago O CITA
+        hojaVista.getRange(6, 9, datosFiltrados.length).setDataValidation(validacionTipoPago);  // Tipo de Pago
+        hojaVista.getRange(6, 10, datosFiltrados.length).setDataValidation(validacionFecha);     // Próximo Pago O CITA
     } else {
         hojaVista.getRange(6, 1).setValue("No hay datos para mostrar");
     }
@@ -780,19 +790,19 @@ function obtenerFechaActual() {
 function obtenerFilaActiva() {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var fila = hoja.getActiveCell().getRow(); // Obtiene el número de fila activa
-  var datosFila = hoja.getRange(fila, 1, 1, 10).getValues(); // Obtiene los datos de la fila activa
-  var abono = datosFila[0][5]; // O PREV ABONADA
-  var saldoPendiente = datosFila[0][6];
+  var datosFila = hoja.getRange(fila, 1, 1, 11).getValues(); // Obtiene los datos de la fila activa
+  var abono = datosFila[0][6]; // O PREV ABONADA
+  var saldoPendiente = datosFila[0][7];
 
   if (saldoPendiente > 0 && abono === "") {
     Browser.msgBox("Error: El campo 'PREV PAGADA' es obligatorio.");
     return;
   }
-  if (saldoPendiente > 0 && datosFila[0][8] === "") {
+  if (saldoPendiente > 0 && datosFila[0][9] === "") {
     Browser.msgBox("Error: El campo 'CITA' es obligatorio.");
     return;
   }
-  if (datosFila[0][7] === "") {
+  if (datosFila[0][8] === "") {
   Browser.msgBox("Error: El campo 'Tipo de pago' es obligatorio.");
   return;
   }
