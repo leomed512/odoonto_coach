@@ -207,30 +207,9 @@ function actualizarDatoEnStaging(hojaVista, rango) {
   for (var i = 1; i < datosStaging.length; i++) {
         if (datosStaging[i][0] === idTransaccion) {
             hojaStaging.getRange(i + 1, columna).setValue(nuevoValor);
-            
-            // Si se modifica el abono O PREV ABONADA ////////////////////////////////////////////////// comentado para evitar cálculo automático de SALDO PENDIENTE Y ESTADO
-            // if (columna === 7) {
-            //     var importeTotal = datosStaging[i][4];
-            //     var saldoPendiente = importeTotal - nuevoValor;
-            //     hojaStaging.getRange(i + 1, 8).setValue(saldoPendiente);
-                
-            //     // Actualizar estado de pago
-            //     var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
-            //     hojaStaging.getRange(i + 1, 12).setValue(estadoPago);
-            // }
+          
         }
     }
-    
-    // Actualizar en la vista de previsiones /////////////////// comentado para evitar cálculo automático de SALDO PENDIENTE Y ESTADO
-    // if (columna === 7) { // Si se modificó el abono O PREV ABONADA
-    //     var importeTotal = hojaVista.getRange(fila, 5).getValue();
-    //     var saldoPendiente = importeTotal - nuevoValor;
-    //     hojaVista.getRange(fila, 8).setValue(saldoPendiente);
-        
-    //     // Actualizar columna de estado de pago
-    //     var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
-    //     hojaVista.getRange(fila, 12).setValue(estadoPago);
-    // }
 
 }
 
@@ -697,19 +676,14 @@ function onEdit(e) {
         if ((rango.getRow() === 2 || rango.getRow() === 3) && rango.getColumn() === 2) {
             actualizarVistaPrevisiones();
         } 
-        // else if (rango.getRow() >= 6) {
-        //     // Si se edita un dato en las filas de datos, actualizar en Staging
-        //     actualizarDatoEnStaging(hoja, rango);
-        // }
+
     }
 
     ////////VISTA COBROS
-    //////////Detectar cambios en Vista Cobros (nuevo)
     if (hoja.getName() === "Vista Cobros") {
         if ((rango.getRow() === 2 || rango.getRow() === 3) && rango.getColumn() === 2) {
             actualizarVistaCobros();
         }
-        // No agregamos la otra condición porque no queremos modificar datos
     }
 
 
@@ -898,7 +872,7 @@ function actualizarPrevisionManual() {
     if (!hojaStaging) {
         hojaStaging = crearHojaPrevisiones(ss);
     }
-  ////////////////////////////////////// validación 
+
     // Datos para identificar el registro específico
     var transactionId = datosFila[0]; // ID Transacción
     var dataStaging = hojaStaging.getDataRange().getValues();
@@ -957,14 +931,11 @@ function actualizarPrevisionManual() {
         Browser.msgBox("Operación cancelada", "No se actualizó ningún registro", Browser.Buttons.OK);
         return;
     }
-  ////////////////////////////////////////  
    
     // Extraer los datos necesarios para llamar a agregarAStagingPrevisiones
     // var transactionId = datosFila[0]; // ID Transacción
     var cita = datosFila[9]
-    // var fechaInicio = cita || new Date(); // Fecha, usar la fecha actual si está vacía
-        var fechaInicio = cita || dataStaging[filaEncontrada-1][1]; // Mantener fecha original si no hay cita
-
+    var fechaInicio = cita || dataStaging[filaEncontrada-1][1]; // Mantener fecha original si no hay cita
     var paciente = datosFila[2]; // Paciente
     var doctor = datosFila[3]; // Doctor
     var importeAceptado = datosFila[4]; // Importe Total
@@ -983,20 +954,6 @@ function actualizarPrevisionManual() {
     // Determinar el estado de pago
     var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
 
-    // var nuevaFila = [
-    //     transactionId,
-    //     fechaInicio,
-    //     paciente,
-    //     doctor,
-    //     importeAceptado,
-    //     prevEsperada, // PREV ESPERADA (ahora después de PREV TOTAL)
-    //     prevPagada,
-    //     saldoPendiente, // calculo eliminado para SALDO
-    //     tipo_pago,
-    //     cita,
-    //     treatment,
-    //     estadoPago
-    // ];
     // Crear el array con los datos actualizados
     var datosActualizados = [
         transactionId,
@@ -1041,7 +998,7 @@ function crearStagingCobros(ss) {
     var hojaCobros = ss.insertSheet("Staging Cobros");
     
     // Tabla principal de staging de cobros
-    var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO"];
+    var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO", "TRATAMIENTO"];
 
     hojaCobros.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold")
@@ -1060,70 +1017,135 @@ function obtenerFechaActual() {
   return fechaFormateada;
 }
 
-//vista previsiones
+
+function contarOcurrenciasID(idBuscado, datos) {
+  
+  // Encontrar el índice de la columna "ID TRANSACCIÓN"
+  const headers = datos[0];
+  const idColumnaIndex = headers.findIndex(header => header === "ID TRANSACCIÓN");
+  
+  // Encontrar el índice de la columna "PREV PAGADA"
+  const prevPagadaIndex = headers.findIndex(header => header === "PREV PAGADA");
+  
+  // Verificar si las columnas existen
+  if (idColumnaIndex === -1) {
+    throw new Error("No se encontró la columna 'ID TRANSACCIÓN'");
+  }
+  
+  if (prevPagadaIndex === -1) {
+    throw new Error("No se encontró la columna 'PREV PAGADA'");
+  }
+  
+  // Filtrar solo las filas que tienen el ID buscado y datos en PREV PAGADA (excluyendo la fila de encabezados)
+  const coincidencias = datos.slice(1).filter(fila => {
+    return fila[idColumnaIndex] == idBuscado && 
+           fila[prevPagadaIndex] !== undefined && 
+           fila[prevPagadaIndex] !== null && 
+           fila[prevPagadaIndex] !== "";
+  });
+  
+  // Retornar la cantidad de coincidencias
+  return coincidencias.length;
+}
+
+/////ejecutar cobro
 function obtenerFilaActiva() {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var fila = hoja.getActiveCell().getRow(); // Obtiene el número de fila activa
-  var datosFila = hoja.getRange(fila, 1, 1, 11).getValues(); // Obtiene los datos de la fila activa
-  var abono = datosFila[0][6]; // O PREV ABONADA
-  var saldoPendiente = datosFila[0][7];
+  var fila = hoja.getActiveCell().getRow(); 
+  var datosFila = hoja.getRange(fila, 1, 1, 12).getValues()[0]; 
+  var prevAbonada = Number(datosFila[6]); // PREV PAGADA
+  var saldoPendAnterior = Number(datosFila[7]);
+  
+  var importeTotal = Number(datosFila[4]); // PREV TOTAL
+  var transactionId = datosFila[0];
+  var fechaExcluir = datosFila[1];
+  
+  // Validar datos
+  if (isNaN(prevAbonada) || prevAbonada <= 0) {
+    Browser.msgBox("Error: El campo 'PREV PAGADA' debe ser un número mayor que cero.");
+    return;
+  }
 
-  if (saldoPendiente > 0 && abono === "") {
-    Browser.msgBox("Error: El campo 'PREV PAGADA' es obligatorio.");
+  if (datosFila[8] === "") {
+    Browser.msgBox("Error: El campo 'Tipo de pago' es obligatorio.");
     return;
   }
-  if (saldoPendiente > 0 && datosFila[0][9] === "") {
-    Browser.msgBox("Error: El campo 'CITA' es obligatorio.");
-    return;
-  }
-  if (datosFila[0][8] === "") {
-  Browser.msgBox("Error: El campo 'Tipo de pago' es obligatorio.");
-  return;
-  }
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (abono) {
-      
-      var hojaStagingCobros = ss.getSheetByName("Staging Cobros") || crearStagingCobros(ss);
+  
+  // Registrar el cobro en Staging Cobros
+  var hojaStagingCobros = ss.getSheetByName("Staging Cobros") || crearStagingCobros(ss);
+  var newData = [
+    transactionId,
+    obtenerFechaActual(),
+    datosFila[2], // paciente
+    datosFila[3], // doctor
+    datosFila[8], // tipo de pago
+    prevAbonada, // monto
+    datosFila[10], // tratamiento
+  ];
+  hojaStagingCobros.appendRow(newData);
 
-      var newData = [
-        datosFila[0][0],
-        obtenerFechaActual(),
-        datosFila[0][2],
-        datosFila[0][3],
-        datosFila[0][7],
-        datosFila[0][5]
-      ];
+  // Actualizar en Staging Previsiones
+  var hojaStaging = ss.getSheetByName("Staging Previsiones");
+  if (hojaStaging) {
+    //Hace append de la fila que se está agrergando
 
-      hojaStagingCobros.appendRow(newData);
+    var dataRange = hojaStaging.getDataRange();
+    var valores = dataRange.getValues();
 
-  if (saldoPendiente > 0) {
-    var newData = [
-      datosFila[0][0],
-      datosFila[0][8],
-      datosFila[0][2],
-      datosFila[0][3],
-      datosFila[0][4],
-      "",
-      datosFila[0][6],
-      datosFila[0][7],
-      "",
-      datosFila[0][10]
-    ];
-    var hojaStagingPrevisiones = ss.getSheetByName("Staging Previsiones");
-    hojaStagingPrevisiones.appendRow(newData);
-        // Actualizar el dropdown de años después de agregar el nuevo registro
-    actualizarDropdownAnos();
-  }
+    var columnaID = 0;          // Columna A - ID TRANSACCION
+    var columnaFechaActual = 1; // Columna B - FECHA ACTUAL
+    var columnaH = 7;
+    var fechaExcluirObj = new Date(fechaExcluir);
+    // Solo conservamos año, mes y día para la comparación
+    var fechaExcluirStr = fechaExcluirObj.toDateString()
 
-  //////////////VISTA COBROS
+    var rows = contarOcurrenciasID(transactionId, valores);
+
+    var filasActualizadas = []
+    if (rows === 0) {
+        var saldoPendActual = importeTotal -prevAbonada;
+      }else if (rows > 0) {
+        var saldoPendActual = saldoPendAnterior - prevAbonada;
+      }
+    var cont = 0;
+    for (var i = 1; i < valores.length; i++) {
+        var fila = valores[i];
+        var idActual = fila[columnaID].toString();
+        
+        // Verificar si el ID coincide con el ID buscado
+        if (idActual === transactionId.toString()) {
+          cont += 1;
+          var fechaActual = fila[columnaFechaActual];
+          
+          // Convertir a string para comparar solo año, mes y día
+          var fechaFilaStr = fechaActual.toDateString();
+          hojaStaging.getRange(i + 1, columnaH + 1).setValue(saldoPendActual);
+
+          // Actualizar el estado basado en el nuevo saldo pendiente
+if (saldoPendActual === 0) {
+    hojaStaging.getRange(i + 1, 12).setValue("PAGADO");
+    // Opcionalmente, puedes aplicar un formato especial
+    hojaStaging.getRange(i + 1, 1, 1, 12).setBackground("#98e0fa");
+} else {
+    hojaStaging.getRange(i + 1, 12).setValue("PENDIENTE");
+}
+          if (fechaFilaStr === fechaExcluirStr) {
+              hojaStaging.getRange(i + 1, 6 + 1).setValue(prevAbonada);
+          }
+        }
+  }}
+  
+  
+  // Actualizar las vistas
   actualizarDropdownAnosCobros();
   actualizarVistaCobros();
-
-      var ui = SpreadsheetApp.getUi();
-    ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
+  actualizarVistaPrevisiones();
+  
+  var ui = SpreadsheetApp.getUi();
+  ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
-}
-
 //////////////BALANCE GENERAL/////////////////////
     function obtenerHojasPorMesYAnio(anio) {
       // Lista de meses válidos
@@ -1416,7 +1438,7 @@ function configurarVistaCobros(hojaVista, ss) {
 
     // Encabezados de la tabla
     var encabezados = [
-        "ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO"
+        "ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO", "TRATAMIENTO"
     ];
 
     hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
