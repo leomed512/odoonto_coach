@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      button{
+        background-color: #00c896;
+        border-radius: 5px;
+        padding: 6px 10px;
+        font-weight:bold;
+        margin-top: 20px;
+      }
+      body{
+        font-family:Arial, Helvetica, sans-serif;
+      }
+    </style>
+    <script>
+      function saveDates() {
+        var startDate = document.getElementById('startDate').value;
+        var endDate = document.getElementById('endDate').value;
+        
+        if (startDate && endDate) {
+          google.script.run.saveDateRange(startDate, endDate);
+          google.script.host.close();
+        } else {
+          alert('Por favor, selecciona ambas fechas.');
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- <h6>Selecciona un rango de fechas</h3> -->
+    <label>Fecha Inicio:</label>
+    <input type="date" id="startDate"><br><br>
+    <label>Fecha Fin:</label>
+    <input type="date" id="endDate"><br><br>
+    <button onclick="saveDates()">Guardar</button>
+  </body>
+</html>
