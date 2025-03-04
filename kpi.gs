@@ -497,3 +497,4 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
+
