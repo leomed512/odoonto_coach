@@ -689,6 +689,21 @@ function onEdit(e) {
                 }
             }
         }
+
+        /////////////////
+        // Nuevo código para detectar cambios en B26
+        if (rango.getA1Notation() === "A26") {
+            var anioComparacion = e.value;
+            
+            if (anioComparacion) {
+                var anioEnteroComp = parseInt(anioComparacion, 10);
+                if (!isNaN(anioEnteroComp)) {
+                    Logger.log("Año seleccionado para comparación: " + anioEnteroComp);
+                    balanceGeneralComparacion(anioEnteroComp);
+                }
+            }
+        }
+        ////////////////
   }
 // Detectar cambios en la hoja en VISTA PREVISIONES
   if (hoja.getName() === "Vista Previsiones") {
@@ -1404,6 +1419,111 @@ function balanceGeneral(annio) {
   var listaHojas = obtenerHojasPorMesYAnio(annio)
   var sumas = obtenerSumasHojas(listaHojas)
 }
+
+////////////////////////////////////////////////////////// BALANCE GENERAL COMPARACIÓN
+// Función para el balance general de la tabla de comparación
+function balanceGeneralComparacion(annio) {
+  var listaHojas = obtenerHojasPorMesYAnio(annio);
+  var mesAFila = {
+    "Enero": 29,
+    "Febrero": 30,
+    "Marzo": 31,
+    "Abril": 32,
+    "Mayo": 33,
+    "Junio": 34,
+    "Julio": 35,
+    "Agosto": 36,
+    "Septiembre": 37,
+    "Octubre": 38,
+    "Noviembre": 39,
+    "Diciembre": 40
+  };
+  
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
+  hojaBalance.getRange("B29:H40").clearContent();
+
+  for (var i = 0; i < listaHojas.length; i++) {
+    var hoja = listaHojas[i];
+    try {
+      var nombreHoja = hoja.getName();
+      var mes = nombreHoja.split(" de ")[0];
+      Logger.log('Procesando comparación: ' + nombreHoja + ' (mes: ' + mes + ')');
+
+      var suma = 0;
+      var suma_pre = 0;
+      var pac_acep = 0;
+
+      var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
+      var startRow = 18; // Primera fila de interés
+      if (lastRow >= startRow) {
+        var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
+        var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
+        var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
+        var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
+
+        var n_pacientes = 0;
+        for (var j = 0; j < pacientes.length; j++) {
+          if (pacientes[j][0]) n_pacientes++;
+        }
+        
+        var n_presupuesto = 0;
+        for (var j = 0; j < presupuestos.length; j++) {
+          if (presupuestos[j][0]) n_presupuesto++;
+        }
+      } else {
+        var n_pacientes = 0;
+        var n_presupuesto = 0;
+      }
+
+      var abonoMes = sumarAbonosPorMes(mes);
+
+      for (var j = 0; j < aceptados.length; j++) {
+        if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
+          pac_acep += 1;
+        }
+      }
+
+      for (var j = 0; j < presupuestos.length; j++) {
+        if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+          suma_pre += presupuestos[j][0];
+        }
+      }
+
+      for (var j = 0; j < valores.length; j++) {
+        if (valores[j][0] && typeof valores[j][0] === 'number') {
+          suma += valores[j][0];
+        }
+      }
+      
+      var filaDestino = mesAFila[mes];
+      Logger.log(`Mes: ${mes}, Fila destino para comparación: ${filaDestino}, Suma: ${suma}`);
+      
+      if (filaDestino) {
+        hojaBalance.getRange(filaDestino, 7).setValue(suma);
+        hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
+        hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
+        hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
+        hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
+        hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
+        hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
+        Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes} (comparación)`);
+      }
+    } catch (error) {
+      Logger.log(`Error en ${nombreHoja} (comparación): ${error}`);
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////
 
 ////////VISTA COBROS///////
 function crearVistaCobros(ss) {
