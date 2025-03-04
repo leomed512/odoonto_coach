@@ -18,10 +18,10 @@ function generateSequentialTransactionId() {
 ////// Registro de pacientes
 function guardarDatosEnTabla2() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var hojaFormulario = ss.getSheetByName("Registro de transacciones");
+    var hojaFormulario = ss.getSheetByName("Registro de presupuesto");
 
     if (!hojaFormulario) {
-        Logger.log("Error: No se encontró la hoja 'Registro de transacciones'");
+        Logger.log("Error: No se encontró la hoja 'Registro de presupuesto'");
         return;
     }
 
@@ -49,31 +49,38 @@ function guardarDatosEnTabla2() {
     var nombreMes = fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long" });
     nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
 
+    // Crear o obtener la hoja staging de cobros
     var hojaMes = ss.getSheetByName(nombreMes) || crearHojaMes(ss, nombreMes);
     var hojaPrevisiones = ss.getSheetByName("Staging Previsiones");
     if (!hojaPrevisiones) {
         hojaPrevisiones = crearHojaPrevisiones(ss);
     }
-        // Crear o obtener la hoja Vista Previsiones
+    
+    // Crear o obtener la hoja Vista Previsiones
     var hojaVista = ss.getSheetByName("Vista Previsiones");
     if (!hojaVista) {
         hojaVista = crearVistaPrevisiones(ss);
     }
-//// CREAR HOJA VISTA COBROS
+    // Crear o obtener la hoja Vista Cobros
     var hojaVistaCobros = ss.getSheetByName("Vista Cobros");
     if (!hojaVistaCobros) {
     hojaVistaCobros = crearVistaCobros(ss);
-}
+    }
+    // Crear o obtener la hoja staging de cobros
+    var hojaStagingCobros = ss.getSheetByName("Staging Cobros") || crearStagingCobros(ss);
+      if (!hojaStagingCobros) {
+    hojaStagingCobros = crearVistaCobros(ss);
+    }
 
     var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
 
     var nuevaFila = [
         transactionId,     // ID Transacción
-        fechaIngresada,    // FECHA DE CONTACTO
+        fechaIngresada,    // FECHA DE PRESUPUESTO
         datos[0][1],       // PACIENTE
         datos[4][1],       // TELÉFONO
         datos[9][0],       // DOCTOR/A
-        datos[9][1],       // AUXILIAR
+        datos[9][1],       // ATP
         datos[9][2],       // TIPOLOGÍA PV
         datos[9][3],       // SUBTIPOLOGÍA
         datos[9][4],       // PLAN DE CITAS
@@ -95,17 +102,18 @@ function guardarDatosEnTabla2() {
     }
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
+
      //actualiza filtro de años en la hoja de Balance General
     actualizarFiltroDeAnios();
     Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
-
+// Crear hojaMes (parrilla ppal)
 function crearHojaMes(ss, nombreMes) {
     var hojaMes = ss.insertSheet(nombreMes);
     var encabezados = [
-        "ID TRANSACCIÓN", "FECHA DE CONTACTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", 
-        "AUXILIAR", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "PLAN DE CITAS", "ESTADO", 
+        "ID TRANSACCIÓN", "FECHA PRESUPUESTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", 
+        "ATP", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "PLAN DE CITAS", "ESTADO", 
         "IMPORTE PRESUPUESTADO", "IMPORTE ACEPTADO", "FECHA INICIO / CONCRETAR", "OBSERVACIONES"
     ];
 
@@ -116,8 +124,9 @@ function crearHojaMes(ss, nombreMes) {
     return hojaMes;
 }
 
+/// PREVISIONES 
 
-///////PREVISIONES STAGING
+/// Crear hoja STAGING PREVISIONES 
 function crearHojaPrevisiones(ss) {
     var hojaPrevisiones = ss.insertSheet("Staging Previsiones");
     var encabezados = [
@@ -125,14 +134,14 @@ function crearHojaPrevisiones(ss) {
         "FECHA ACTUAL", 
         "PACIENTE", 
         "DOCTOR", 
-        "PREV TOTAL", /// ANTES IMPORTE TOTAL
-        "PREV ESPERADA", // NUEVA COLUMNA (ahora después de PREV TOTAL)
-        "PREV PAGADA", // ANTES ABONO
+        "PREV TOTAL", 
+        "PREV ESPERADA", 
+        "PREV PAGADA", 
         "SALDO PENDIENTE", 
         "TIPO DE PAGO", 
-        "CITA", /// ANTES PRÓXIMO PAGO
+        "CITA", 
         "TRATAMIENTO",
-        "ESTADO / € TOTALES" // ANTES ESTADO
+        "ESTADO / € TOTALES"
     ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
@@ -144,7 +153,7 @@ function crearHojaPrevisiones(ss) {
     hojaPrevisiones.hideSheet();
     return hojaPrevisiones;
 }
-
+/// Agregar a paciente a Staging previsiones
 function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeAceptado) {
     //Verificar si el ID ya existe
     if (existeIdEnHoja(hojaPrevisiones, transactionId)) {
@@ -164,9 +173,9 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
         paciente,
         doctor,
         importeAceptado,
-        "", // PREV ESPERADA (ahora después de PREV TOTAL)
+        "", 
         "",
-        "", // calculo eliminado para SALDO
+        "", 
         "",
         "",
         "",
@@ -190,7 +199,7 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
     actualizarDropdownAnos();
 }
 
-
+/// Actualizar datos en el Staging de previsiones
 function actualizarDatoEnStaging(hojaVista, rango) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaStaging = ss.getSheetByName("Staging Previsiones");
@@ -213,7 +222,7 @@ function actualizarDatoEnStaging(hojaVista, rango) {
 
 }
 
-// crear hoja de visualizaciones de previsiones
+// crear hoja vista de previsiones
 function crearVistaPrevisiones(ss) {
     var hojaVista = ss.getSheetByName("Vista Previsiones");
     if (!hojaVista) {
@@ -257,28 +266,26 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     hojaVista.getRange("B3").setHorizontalAlignment("right");
 
 ////INSTRUCCIONES
-    hojaVista.getRange(1, 5, 1, 6).merge().setValue("INSTRUCCIONES PARA REGISTRAR PAGOS ")
-        .setFontSize(12)
+    hojaVista.getRange(1, 5, 1, 6).merge().setValue("Actualizar Previsión: Cuándo? al registrar un presupuesto NUEVO como 'ACEPTADO' o cuando cambia de ESTADO a 'ACEPTADO' en la parrilla mensual. Qué hacer? modifique las columnas PREV ESPERADA y CITA, TRATAMIENTO y TIPO DE PAGO. Paso final: seleccione toda la fila, vaya a MENÚ > PREVISIONES > ACTUALIZAR PREVISIÓN.")
+        .setFontSize(9)
         .setBackground("#00c896")
         .setFontColor("#424242")
-        .setFontWeight('bold')
-        .setVerticalAlignment("middle")
-        .setHorizontalAlignment("center");
-      hojaVista.getRange(2, 5, 1, 6).merge().setValue("Identifica la transacción que deseas ejecutar, ingresa el PREV PAGADA, TIPO DE PAGO, verifica que se actualice SALDO PENDIENTE. Si el pago será en cuotas ingresa la fecha de CITA.")
-      .setFontSize(10)
+        .setWrap(true)
+        .setVerticalAlignment("middle");
+      hojaVista.getRange(2, 5, 1, 6).merge().setValue("Agregar Previsión: Cuándo? para crear varias citas/pagos para el mismo cliente / presupuesto. Qué hacer? copie y pegue TODA la fila deseada, modifique los datos en las columnas PREV ESPERADA y CITA, Tratamiento (opcional). Paso final: seleccione toda la fila modificada, vaya a MENÚ > PREVISIONES > AGREGAR PREVISIÓN.")
+      .setFontSize(9)
       .setBackground("#424242")
       .setFontColor("#FFFFFF")
       .setWrap(true)
-      .setVerticalAlignment("middle")
-      .setHorizontalAlignment("center");
+      .setVerticalAlignment("middle");
 
-      hojaVista.getRange(3, 5, 1, 6).merge().setValue("Selecciona la fila completa de la transacción en el panel derecho, ve a la barra de Menú > Cobros > Ejecutar cobro en fila seleccionada")
-      .setFontSize(10)
+      hojaVista.getRange(3, 5, 1, 6).merge().setValue("Cobros: Cuándo? para registrar pago de una previsión. Qué hacer? ingrese en PREV PAGADA el monto pagado. Paso final: seleccione toda la fila modificada, en el MENÚ > COBROS > EJECUTAR COBRO.")
+      .setFontSize(9)
       .setBackground("#98e0fa")
       .setFontColor("#080808")
       .setWrap(true)
-      .setVerticalAlignment("middle")
-      .setHorizontalAlignment("center");
+      .setVerticalAlignment("middle");
+
 
 // Validaciones de año y mes 
 var hojaStaging = ss.getSheetByName("Staging Previsiones");
@@ -304,7 +311,7 @@ for (var i = 1; i < datos.length; i++) {
     }
 }
 
-// Asegurarnos de que el Set se convierte correctamente a array
+// Asegurarsede que el Set se convierte correctamente a array
 var annosArray = Array.from(annos).sort((a, b) => a - b);
 var annosArrayString = annosArray.map(String);
 console.log(typeof annosArrayString);
@@ -327,22 +334,23 @@ var validacionMes = SpreadsheetApp.newDataValidation()
     .build();
 hojaVista.getRange("B3").setDataValidation(validacionMes);
 
+/// columnas de control de fecha
 hojaVista.getRange("Q1").setValue("Fechas de control");
 hojaVista.getRange("Q2:Q3").setValues([["Fecha inicio"], ["Fecha fin"]]);
 hojaVista.getRange("Q2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
 hojaVista.getRange("Q3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EOMONTH(Q2,0))');
 
 // Ocultar las columnas de control
-hojaVista.hideColumns(17, 1); // Oculta la columna P
+hojaVista.hideColumns(17, 1); // Oculta la columna de control
 
 
 // Encabezados de la tabla
 var encabezados = [
-    "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "PREV TOTAL",///ANTES IMPORTE TOTAL
-    "PREV ESPERADA", // NUEVA COLUMNA (después de PREV TOTAL)
-    "PREV PAGADA",//ANTES ABONO 
-    "SALDO PENDIENTE", "TIPO DE PAGO", "CITA", // ANTES PROXIMO PAGO
-    "TRATAMIENTO", "ESTADO / € TOTALES" // ANTES ESTADO
+    "ID TRANSACCIÓN", "FECHA", "PACIENTE", "DOCTOR", "PREV TOTAL",
+    "PREV ESPERADA", 
+    "PREV PAGADA",
+    "SALDO PENDIENTE", "TIPO DE PAGO", "CITA", 
+    "TRATAMIENTO", "ESTADO / € TOTALES" 
 ];
 
 hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -402,6 +410,7 @@ var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encab
     
 }
 
+///// Actualizar filtro de fechas en Vista Previsiones
 function actualizarDropdownAnos() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaStaging = ss.getSheetByName("Staging Previsiones");
@@ -442,13 +451,13 @@ function actualizarDropdownAnos() {
         hojaVista.getRange("B2").setDataValidation(validacionAnno);
     }
 }
+///// Tabla resumen de Vista Previsiones
 function configurarTablaResumen(hojaVista) {
     var resumenEncabezados = [
         ["RESUMEN", "", ""],
         ["Total Importe", "=SUM(E6:E)", ""],
-        ["Previsión esperada", "=SUM(F6:F)", ""], // Nueva línea para PREV ESPERADA
-        ["Previsión abonada", "=SUM(G6:G)", ""], // Ahora referencia a columna G
-        ["Total Pendiente", "=SUM(H6:H)", ""]    // Ahora referencia a columna H
+        ["Previsión mes actual", "=SUM(F6:F)", ""], // Nueva línea para PREV ESPERADA
+        ["Previsión abonada", "=SUM(G6:G)", ""] // Ahora referencia a columna G
     ];
  
     var rangoResumen = hojaVista.getRange(1, 14, resumenEncabezados.length, 3);
@@ -461,17 +470,19 @@ function configurarTablaResumen(hojaVista) {
         .setFontWeight("bold")
         .merge();
     
-    hojaVista.getRange("O2:O5").setNumberFormat("€#,##0.00"); // Ahora 5 filas para incluir PREV ESPERADA
+    hojaVista.getRange("O2:O4").setNumberFormat("€#,##0.00"); // Ahora 5 filas para incluir PREV ESPERADA
     
     // Estilos alternados
     hojaVista.getRange("N2:O2").setBackground("#f6f6f6");
     hojaVista.getRange("N3:O3").setBackground("#e2e2e2");
     hojaVista.getRange("N4:O4").setBackground("#f6f6f6");
-    hojaVista.getRange("N5:O5").setBackground("#e2e2e2"); // Nueva fila
     
     // Bordes
-    hojaVista.getRange("N1:O5").setBorder(true, true, true, true, true, true); 
+    hojaVista.getRange("N1:O4").setBorder(true, true, true, true, true, true); 
+    hojaVista.autoResizeColumns(14, 3);
+
 }
+///// Actualizar Vista de Previsiones luego de filtrar por fecha
 function actualizarVistaPrevisiones() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaVista = ss.getSheetByName("Vista Previsiones");
@@ -613,9 +624,8 @@ function actualizarTablaResumen(hojaMes) {
     var rangoPtoMedio = hojaMes.getRange(7, 3);
     var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
     var rangoPacientesAceptados = hojaMes.getRange(5, 4);
+    var rangoPacientesCobrados = hojaMes.getRange(6, 4);
 
-
-//////////////////total cobrado en vista de parrilla
     // Extraer el nombre del mes y año de la hoja
     var nombreHoja_cobros = hojaMes.getName();
     var nombreMes_cobros = nombreHoja_cobros.split(" de ")[0];
@@ -634,13 +644,22 @@ function actualizarTablaResumen(hojaMes) {
     var fechaInicio_cobros = `DATE(${anio_cobros},${mesNum_cobros},1)`;
     var fechaFin_cobros = `EOMONTH(DATE(${anio_cobros},${mesNum_cobros},1),0)`;
 
-// Fórmulas
-    rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
+// Fórmulas de tabla resumen
+
     rangoTotalPresupuestado.setFormula(`=SUMIF(J${filaInicio}:J${ultimaFila}, "<>No aceptado", K${filaInicio}:K${ultimaFila})`);
     rangoTotalAceptado.setFormula(`=SUMIF(J${filaInicio}:J${ultimaFila}, "Aceptado", L${filaInicio}:L${ultimaFila})`);
     rangoPtoMedio.setFormula(`=IF(COUNTA(K${filaInicio}:K${ultimaFila})>0, C4/COUNTA(K${filaInicio}:K${ultimaFila}), 0)`);
     rangoPacientesPresupuestados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "<>No aceptado")`);
     rangoPacientesAceptados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "Aceptado")`);
+    /// cuenta lo que se cobre en ese mes, si se cobra luego de ese mes, no se cuenta aquí 
+
+    // rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
+    // rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
+
+    ///// Cuenta lo que se ha pagado que corresponde con los presupuestos de ese mes 
+    rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!A:A,TRANSPOSE(UNIQUE(A${filaInicio}:A${ultimaFila})))`);
+    rangoTotalCobrado.setFormula(`=SUMPRODUCT(SUMIF('Staging Cobros'!A:A,A${filaInicio}:A${ultimaFila},'Staging Cobros'!F:F))`);
+
 
     [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio].forEach(celda => {
         celda.setNumberFormat("€#,##0.00");
@@ -671,7 +690,7 @@ function onEdit(e) {
             }
         }
   }
-
+// Detectar cambios en la hoja en VISTA PREVISIONES
   if (hoja.getName() === "Vista Previsiones") {
         if ((rango.getRow() === 2 || rango.getRow() === 3) && rango.getColumn() === 2) {
             actualizarVistaPrevisiones();
@@ -726,8 +745,10 @@ function limpiarFormulario(hoja) {
     var celdas = ["C3", "C5", "C7","B12", "C12", "D12", "E12", "F12", "G12", "B17", "C17", "D17", "E17", "F17", "B21"];
     celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
- 
-///////////////////////////crear botón en menú para cobro
+
+/////// COBROS
+
+//crear botón en menú para cobro
 function onOpen() {
     var ui = SpreadsheetApp.getUi();
     // Crear un nuevo menú para ACTUALIZAR y CREAR previsiones
@@ -737,13 +758,13 @@ function onOpen() {
         .addToUi();
 
     ui.createMenu('Cobros')
-        .addItem('Ejecutar cobro en fila seleccionada', 'obtenerFilaActiva')
+        .addItem('Ejecutar cobro', 'obtenerFilaActiva')
         .addToUi();
         
     // Añadir esta línea para inicializar Vista Cobros
     actualizarDropdownAnosCobros();
 }
-///////////////////////////agregar previsión desde vista 
+///agregar previsión desde vista previsiones (crear varias citas)
 function agregarPrevisionManual() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaVista = ss.getActiveSheet();
@@ -791,10 +812,6 @@ function agregarPrevisionManual() {
     var tipo_pago = datosFila[8];
     var treatment = datosFila[10];
 
-
-    
-    // Agregamos directamente a la hoja Staging Previsiones sin usar la función existente
-    // ya que esa función verifica duplicados y no queremos esa verificación en este caso
     var ultimaFila = hojaStaging.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
     // Determinar el estado de pago
@@ -806,9 +823,9 @@ function agregarPrevisionManual() {
         paciente,
         doctor,
         importeAceptado,
-        prevEsperada, // PREV ESPERADA (ahora después de PREV TOTAL)
+        prevEsperada, 
         prevPagada,
-        saldoPendiente, // calculo eliminado para SALDO
+        saldoPendiente, 
         tipo_pago,
         cita,
         treatment,
@@ -839,7 +856,7 @@ function agregarPrevisionManual() {
     Browser.msgBox("Éxito", "La Previsión adicional se ha agregado correctamente", Browser.Buttons.OK);
 }
 
-////// actualizar previsión (para fijar cita de previsión apropiadamente)
+////// actualizar previsión (para fijar cita de previsión apropiadamente luego de registrar paciente aceptado)
 function actualizarPrevisionManual() {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var hojaVista = ss.getActiveSheet();
@@ -888,7 +905,6 @@ function actualizarPrevisionManual() {
                 dataStaging[i][4] === datosFila[4]) {
                 
                 // Verificación adicional con la fecha (si es consistente entre vistas)
-                // Esto puede necesitar ajustes si las fechas se manejan de manera diferente
                 var fechaStaging = dataStaging[i][1];
                 var fechaVista = datosFila[1];
                 
@@ -946,9 +962,6 @@ function actualizarPrevisionManual() {
     var treatment = datosFila[10];
 
 
-    
-    // Agregamos directamente a la hoja Staging Previsiones sin usar la función existente
-    // ya que esa función verifica duplicados y no queremos esa verificación en este caso
     var ultimaFila = hojaStaging.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
     // Determinar el estado de pago
@@ -993,7 +1006,7 @@ function actualizarPrevisionManual() {
     Browser.msgBox("Éxito", "La Previsión se ha actualizado correctamente", Browser.Buttons.OK);
 }
 
-////////////////////////EJECUTAR COBROS 
+///Crear Staging Cobros
 function crearStagingCobros(ss) {
     var hojaCobros = ss.insertSheet("Staging Cobros");
     
@@ -1009,7 +1022,7 @@ function crearStagingCobros(ss) {
     hojaCobros.hideSheet();
     return hojaCobros;
 }
-
+// validar fecha
 function obtenerFechaActual() {
   var fecha = new Date();
   var fechaFormateada = Utilities.formatDate(fecha, Session.getScriptTimeZone(), "dd/MM/yyyy");
@@ -1017,7 +1030,7 @@ function obtenerFechaActual() {
   return fechaFormateada;
 }
 
-
+//contar ocurrencias de la transacción
 function contarOcurrenciasID(idBuscado, datos) {
   
   // Encontrar el índice de la columna "ID TRANSACCIÓN"
@@ -1048,7 +1061,7 @@ function contarOcurrenciasID(idBuscado, datos) {
   return coincidencias.length;
 }
 
-/////ejecutar cobro
+///// Ejecutar cobro
 function obtenerFilaActiva() {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var fila = hoja.getActiveCell().getRow(); 
@@ -1146,7 +1159,10 @@ if (saldoPendActual === 0) {
   var ui = SpreadsheetApp.getUi();
   ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
 }
+
 //////////////BALANCE GENERAL/////////////////////
+
+/// Trackear las hojas que cumplan con fecha de filtro 
     function obtenerHojasPorMesYAnio(anio) {
       // Lista de meses válidos
       const mesesValidos = [
@@ -1184,7 +1200,8 @@ if (saldoPendActual === 0) {
       
       return hojasValidas;
     }
-  
+
+/// Calcular valores de cada variable
 function obtenerSumasHojas(hojas) {
   var resultados = Object.create(null);
   
@@ -1346,7 +1363,7 @@ function obtenerAniosDeHojas() {
   Logger.log(listaAnios);
   return listaAnios;
 }
-
+/// Actualizar filtro en balance general
 function actualizarFiltroDeAnios() {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
   if (!hoja) {

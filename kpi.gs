@@ -221,6 +221,14 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange('D2').setValue(startDate);  // Guarda la fecha de inicio en D2
   sheet.getRange('D3').setValue(endDate);
 
+
+      // Reset all calculated values to zero to avoid showing old data
+  sheet.getRange("B5:C9").setValue(0);
+  sheet.getRange("C15:C17").setValue(0);
+  sheet.getRange("C19").setValue(0);
+  sheet.getRange("B23:C26").setValue(0);
+  sheet.getRange("B30:C36").setValue(0);
+  sheet.getRange("C40:C43").setValue(0);
   
   var y = sheet.getRange('D2').getValue();
   var z = sheet.getRange('D3').getValue();
@@ -489,4 +497,3 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
-
