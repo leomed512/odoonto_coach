@@ -777,9 +777,11 @@ function onOpen() {
         .addToUi();
 
       // Agregar nuevo menú para el Balance General
-  ui.createMenu('Balance General')
-    .addItem('Actualizar Tablas', 'actualizarBalanceGeneral')
-    .addToUi();    
+  ui.createMenu('Análisis')
+    .addItem('Actualizar Balance General', 'actualizarBalanceGeneral')
+    .addItem('Actualizar KPIs', 'actualizarKPIs') // Nueva opción
+    .addToUi(); 
+
     // Añadir esta línea para inicializar Vista Cobros
     actualizarDropdownAnosCobros();
 }
@@ -2004,4 +2006,129 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
   }
   
 }
-
+// function actualizarKPIs() {
+//     var ss = SpreadsheetApp.getActiveSpreadsheet();
+//     var hojaKPIs = ss.getSheetByName('Análisis de KPIs');
+    
+//     if (!hojaKPIs) {
+//         Browser.msgBox("Error", "No se encontró la hoja 'Análisis de KPIs'", Browser.Buttons.OK);
+//         return;
+//     }
+    
+//     // Mostrar mensaje de inicio
+//     SpreadsheetApp.getActiveSpreadsheet().toast("Iniciando actualización de KPIs...", "Actualizando");
+    
+//     // Obtener las fechas seleccionadas actualmente
+//     var fechaInicio = hojaKPIs.getRange('D2').getValue();
+//     var fechaFin = hojaKPIs.getRange('D3').getValue();
+    
+//     if (!fechaInicio || !fechaFin) {
+//         Browser.msgBox("Error", "No hay fechas seleccionadas para actualizar KPIs. Por favor seleccione un rango de fechas primero.", Browser.Buttons.OK);
+//         return;
+//     }
+    
+//     // Verificar que las fechas sean del mismo mes
+//     if (!sonDelMismoMes(fechaInicio, fechaFin)) {
+//         Browser.msgBox("Error", "Las fechas deben ser del mismo mes para actualizar KPIs.", Browser.Buttons.OK);
+//         return;
+//     }
+    
+//     // Ejecutar la función que actualiza los KPIs con las fechas actuales
+//     saveDateRange(fechaInicio, fechaFin);
+    
+//     // Mostrar mensaje de finalización
+//     Browser.msgBox("Actualización Completa", "Los KPIs han sido actualizados correctamente para el rango de fechas seleccionado.", Browser.Buttons.OK);
+// }
+function actualizarKPIs() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaKPIs = ss.getSheetByName('Análisis de KPIs');
+    
+    if (!hojaKPIs) {
+      Browser.msgBox("Error", "No se encontró la hoja 'Análisis de KPIs'. Por favor, asegúrese de que existe esta hoja en el libro.", Browser.Buttons.OK);
+      return;
+    }
+    
+    // Mostrar mensaje de inicio
+    SpreadsheetApp.getActiveSpreadsheet().toast("Iniciando verificación de estructura...", "Preparando");
+    
+    // Obtener las fechas seleccionadas actualmente
+    var fechaInicio = hojaKPIs.getRange('D2').getValue();
+    var fechaFin = hojaKPIs.getRange('D3').getValue();
+    
+    // Si no hay fechas seleccionadas, limpiar todos los valores de KPIs
+    if (!fechaInicio || !fechaFin) {
+      // Limpiar todas las áreas de datos de KPIs
+      SpreadsheetApp.getActiveSpreadsheet().toast("No hay fechas seleccionadas. Limpiando valores de KPIs...", "Limpiando");
+      
+      // Limpiar análisis por rango de importes
+      hojaKPIs.getRange("B5:C9").setValue(0);
+      
+      // Limpiar análisis de previsiones y cobros
+      hojaKPIs.getRange("C15:C17").setValue(0);
+      hojaKPIs.getRange("C19").setValue(0);
+      
+      // Limpiar análisis por estado
+      hojaKPIs.getRange("B23:C26").setValue(0);
+      
+      // Limpiar análisis por tipología
+      hojaKPIs.getRange("B30:C36").setValue(0);
+      
+      // Limpiar análisis por tipo de pago
+      hojaKPIs.getRange("C40:C43").setValue(0);
+      
+      // Limpiar tabla de análisis por doctor
+      var ultimaFila = hojaKPIs.getLastRow();
+      if (ultimaFila >= 49) {
+        hojaKPIs.getRange(49, 1, ultimaFila - 48, hojaKPIs.getLastColumn()).clearContent();
+      }
+      
+      Browser.msgBox("Limpieza Completa", "Se han limpiado todos los valores de KPIs. Para ver datos nuevos, seleccione un rango de fechas usando el botón 'SELECCIONAR'.", Browser.Buttons.OK);
+      return;
+    }
+    
+    // Verificar que las hojas necesarias existan
+    var hojaStagingPrevisiones = ss.getSheetByName("Staging Previsiones");
+    var hojaStagingCobros = ss.getSheetByName("Staging Cobros");
+    
+    if (!hojaStagingPrevisiones) {
+      Browser.msgBox("Error", "No se encontró la hoja 'Staging Previsiones' que es necesaria para el cálculo de KPIs.", Browser.Buttons.OK);
+      return;
+    }
+    
+    if (!hojaStagingCobros) {
+      Browser.msgBox("Error", "No se encontró la hoja 'Staging Cobros' que es necesaria para el cálculo de KPIs.", Browser.Buttons.OK);
+      return;
+    }
+    
+    // Verificar que las fechas sean del mismo mes
+    if (!sonDelMismoMes(fechaInicio, fechaFin)) {
+      Browser.msgBox("Error", "Las fechas deben ser del mismo mes para actualizar KPIs.", Browser.Buttons.OK);
+      return;
+    }
+    
+    // Verificar si existe la hoja mensual correspondiente
+    var hojaMes = formatearFecha(fechaInicio);
+    var hojaMensual = ss.getSheetByName(hojaMes);
+    
+    if (!hojaMensual) {
+      Browser.msgBox("Error", `No se encontró la hoja '${hojaMes}' necesaria para el análisis. Es posible que aún no haya datos para este período.`, Browser.Buttons.OK);
+      return;
+    }
+    
+    SpreadsheetApp.getActiveSpreadsheet().toast("Iniciando actualización de KPIs...", "Actualizando");
+    
+    // Ejecutar la función que actualiza los KPIs con las fechas actuales
+    try {
+      saveDateRange(fechaInicio, fechaFin);
+      // Mostrar mensaje de finalización
+      Browser.msgBox("Actualización Completa", "Los KPIs han sido actualizados correctamente para el rango de fechas seleccionado.", Browser.Buttons.OK);
+    } catch (e) {
+      Browser.msgBox("Error en la actualización", "Se produjo un error al actualizar los KPIs: " + e.toString(), Browser.Buttons.OK);
+      Logger.log("Error en saveDateRange: " + e.toString());
+    }
+  } catch (e) {
+    Browser.msgBox("Error general", "Se produjo un error inesperado: " + e.toString(), Browser.Buttons.OK);
+    Logger.log("Error general en actualizarKPIs: " + e.toString());
+  }
+}
