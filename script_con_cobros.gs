@@ -21,7 +21,7 @@ function guardarDatosEnTabla2() {
     var hojaFormulario = ss.getSheetByName("Registro de presupuesto");
 
     if (!hojaFormulario) {
-        Logger.log("Error: No se encontró la hoja 'Registro de presupuesto'");
+        //Logger.log("Error: No se encontró la hoja 'Registro de presupuesto'");
         return;
     }
 
@@ -106,9 +106,7 @@ function guardarDatosEnTabla2() {
      //actualiza filtro de años en la hoja de Balance General
     actualizarFiltroDeAnios();
 
-    /// balance general
-    actualizarTodasLasTablas();
-    Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
+   // Logger.log("Datos guardados en '" + nombreMes + "' correctamente.");
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
 // Crear hojaMes (parrilla ppal)
@@ -160,7 +158,7 @@ function crearHojaPrevisiones(ss) {
 function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeAceptado) {
     //Verificar si el ID ya existe
     if (existeIdEnHoja(hojaPrevisiones, transactionId)) {
-        Logger.log("ID ya existe en Staging Previsiones: " + transactionId);
+      //  Logger.log("ID ya existe en Staging Previsiones: " + transactionId);
         Browser.msgBox("Error", `El ID de transacción ${id} ya existe en la hoja ${hoja.getName()}`, Browser.Buttons.OK);
         return;
     }
@@ -309,7 +307,7 @@ for (var i = 1; i < datos.length; i++) {
         if (!isNaN(fecha.getTime())) {
             annos.add(fecha.getFullYear());
         } else {
-            Logger.log("Fecha inválida encontrada en la fila " + (i + 1));
+            //Logger.log("Fecha inválida encontrada en la fila " + (i + 1));
         }
     }
 }
@@ -656,12 +654,12 @@ function actualizarTablaResumen(hojaMes) {
     rangoPacientesAceptados.setFormula(`=COUNTIF(J${filaInicio}:J${ultimaFila}, "Aceptado")`);
     /// cuenta lo que se cobre en ese mes, si se cobra luego de ese mes, no se cuenta aquí 
 
-    // rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
-    // rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
+    rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
+    rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
 
     ///// Cuenta lo que se ha pagado que corresponde con los presupuestos de ese mes 
-    rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!A:A,TRANSPOSE(UNIQUE(A${filaInicio}:A${ultimaFila})))`);
-    rangoTotalCobrado.setFormula(`=SUMPRODUCT(SUMIF('Staging Cobros'!A:A,A${filaInicio}:A${ultimaFila},'Staging Cobros'!F:F))`);
+    // rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!A:A,TRANSPOSE(UNIQUE(A${filaInicio}:A${ultimaFila})))`);
+    // rangoTotalCobrado.setFormula(`=SUMPRODUCT(SUMIF('Staging Cobros'!A:A,A${filaInicio}:A${ultimaFila},'Staging Cobros'!F:F))`);
 
 
     [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio].forEach(celda => {
@@ -685,10 +683,8 @@ function onEdit(e) {
             if (anioSeleccionado) {
                 var anioEntero = parseInt(anioSeleccionado, 10); // Convertir a entero
                 if (!isNaN(anioEntero)) { // Verificar que sea un número válido
-                    Logger.log("Año seleccionado en BALANCE GENERAL: " + anioEntero);
+                   // Logger.log("Año seleccionado en BALANCE GENERAL: " + anioEntero);
                     balanceGeneral(anioEntero);
-                } else {
-                    Logger.log("El valor seleccionado no es un número válido.");
                 }
             }
         }
@@ -701,7 +697,7 @@ function onEdit(e) {
             if (anioComparacion) {
                 var anioEnteroComp = parseInt(anioComparacion, 10);
                 if (!isNaN(anioEnteroComp)) {
-                    Logger.log("Año seleccionado para comparación: " + anioEnteroComp);
+                    // Logger.log("Año seleccionado para comparación: " + anioEnteroComp);
                     balanceGeneralComparacion(anioEnteroComp);
                 }
             }
@@ -754,8 +750,7 @@ function onEdit(e) {
         }
 
         actualizarFormatoFila(hoja, fila, estadoNuevo);
-        // balance general
-         actualizarTodasLasTablas();
+
     }
 }
 
@@ -780,7 +775,11 @@ function onOpen() {
     ui.createMenu('Cobros')
         .addItem('Ejecutar cobro', 'obtenerFilaActiva')
         .addToUi();
-        
+
+      // Agregar nuevo menú para el Balance General
+  ui.createMenu('Balance General')
+    .addItem('Actualizar Tablas', 'actualizarBalanceGeneral')
+    .addToUi();    
     // Añadir esta línea para inicializar Vista Cobros
     actualizarDropdownAnosCobros();
 }
@@ -871,8 +870,7 @@ function agregarPrevisionManual() {
     
     // Actualizar la vista después de añadir el nuevo registro
     actualizarVistaPrevisiones();
-    //balance general
-        actualizarTodasLasTablas();
+
     // Mostrar mensaje de éxito
     Browser.msgBox("Éxito", "La Previsión adicional se ha agregado correctamente", Browser.Buttons.OK);
 }
@@ -1022,8 +1020,6 @@ function actualizarPrevisionManual() {
     
     // Actualizar la vista después de añadir el nuevo registro
     actualizarVistaPrevisiones();
-    // balance general
-      actualizarTodasLasTablas();
 
     // Mostrar mensaje de éxito
     Browser.msgBox("Éxito", "La Previsión se ha actualizado correctamente", Browser.Buttons.OK);
@@ -1049,7 +1045,7 @@ function crearStagingCobros(ss) {
 function obtenerFechaActual() {
   var fecha = new Date();
   var fechaFormateada = Utilities.formatDate(fecha, Session.getScriptTimeZone(), "dd/MM/yyyy");
-  Logger.log(fechaFormateada);
+  //Logger.log(fechaFormateada);
   return fechaFormateada;
 }
 
@@ -1178,8 +1174,6 @@ if (saldoPendActual === 0) {
   actualizarDropdownAnosCobros();
   actualizarVistaCobros();
   actualizarVistaPrevisiones();
-  /// balance general
-    actualizarTodasLasTablas();
 
   var ui = SpreadsheetApp.getUi();
   ui.alert('¡Operación exitosa!', 'El cobro se ha registrado apropiadamente', ui.ButtonSet.OK);
@@ -1215,12 +1209,12 @@ if (saldoPendActual === 0) {
         // Extraer solo el nombre del mes (todo antes de " de ")
         var mesA = a.getName().split(" de ")[0];
         var mesB = b.getName().split(" de ")[0];
-        Logger.log("Comparando: " + mesA + " con " + mesB);
+        //Logger.log("Comparando: " + mesA + " con " + mesB);
         return mesesValidos.indexOf(mesA) - mesesValidos.indexOf(mesB);
       });
     
       hojasValidas.forEach(hoja => {
-        Logger.log(hoja.getName());
+       // Logger.log(hoja.getName());
       });
       
       return hojasValidas;
@@ -1254,7 +1248,7 @@ function obtenerSumasHojas(hojas) {
     try {
       var nombreHoja = hoja.getName();
       var mes = nombreHoja.split(" de ")[0];
-      Logger.log('Procesando: ' + nombreHoja + ' (mes: ' + mes + ')');
+     // Logger.log('Procesando: ' + nombreHoja + ' (mes: ' + mes + ')');
 
       var suma = 0;
       var suma_pre = 0;
@@ -1297,7 +1291,7 @@ function obtenerSumasHojas(hojas) {
       resultados[nombreHoja] = Number(suma);
       
       var filaDestino = mesAFila[mes];
-      Logger.log(`Mes: ${mes}, Fila destino: ${filaDestino}, Suma: ${suma}`);
+      //Logger.log(`Mes: ${mes}, Fila destino: ${filaDestino}, Suma: ${suma}`);
       
       if (filaDestino) {
         hojaBalance.getRange(filaDestino, 7).setValue(suma);
@@ -1307,13 +1301,13 @@ function obtenerSumasHojas(hojas) {
         hojaBalance.getRange(filaDestino, 6).setValue(suma_pre/n_presupuesto);
         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-        Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes}`);
+       // Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes}`);
       } else {
-        Logger.log(`No se encontró fila destino para el mes: ${mes}`);
+        //Logger.log(`No se encontró fila destino para el mes: ${mes}`);
       }
 
     } catch (error) {
-      Logger.log(`Error en ${nombreHoja}: ${error}`);
+      //Logger.log(`Error en ${nombreHoja}: ${error}`);
       resultados[nombreHoja] = 0;
     }
   }
@@ -1385,14 +1379,14 @@ function obtenerAniosDeHojas() {
 
   // Convertir el Set a lista, ordenarla de menor a mayor y devolverla
   var listaAnios = Array.from(aniosUnicos).sort((a, b) => a - b);
-  Logger.log(listaAnios);
+  //Logger.log(listaAnios);
   return listaAnios;
 }
 /// Actualizar filtro en balance general
 function actualizarFiltroDeAnios() {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
   if (!hoja) {
-    Logger.log("La hoja 'BALANCE GENERAL' no existe.");
+    //Logger.log("La hoja 'BALANCE GENERAL' no existe.");
     return;
   }
 
@@ -1400,7 +1394,7 @@ function actualizarFiltroDeAnios() {
   var anios = obtenerAniosDeHojas(); // Esta es la función que hicimos antes
 
   if (anios.length === 0) {
-    Logger.log("No hay años para agregar al filtro.");
+    //Logger.log("No hay años para agregar al filtro.");
     return;
   }
 
@@ -1413,7 +1407,7 @@ function actualizarFiltroDeAnios() {
 
   // Aplicar la validación a la celda A2
   rango.setDataValidation(reglaValidacion);
-  Logger.log("Filtro de años actualizado con: " + anios);
+  //Logger.log("Filtro de años actualizado con: " + anios);
 }
 
 
@@ -1456,7 +1450,7 @@ function balanceGeneral(annio) {
     try {
       var nombreHoja = hoja.getName();
       var mes = nombreHoja.split(" de ")[0];
-      Logger.log('Procesando tabla principal: ' + nombreHoja + ' (mes: ' + mes + ')');
+      //Logger.log('Procesando tabla principal: ' + nombreHoja + ' (mes: ' + mes + ')');
 
       var suma = 0;
       var suma_pre = 0;
@@ -1505,7 +1499,7 @@ function balanceGeneral(annio) {
       }
       
       var filaDestino = mesAFila[mes];
-      Logger.log(`Mes: ${mes}, Fila destino para tabla principal: ${filaDestino}, Suma: ${suma}`);
+     // Logger.log(`Mes: ${mes}, Fila destino para tabla principal: ${filaDestino}, Suma: ${suma}`);
       
       if (filaDestino) {
         hojaBalance.getRange(filaDestino, 7).setValue(suma);
@@ -1515,12 +1509,14 @@ function balanceGeneral(annio) {
         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-        Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes} (tabla principal)`);
+        //Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes} (tabla principal)`);
       }
     } catch (error) {
       Logger.log(`Error en ${nombreHoja} (tabla principal): ${error}`);
     }
   }
+    // Agregar la nueva funcionalidad de distribución de presupuestos
+  obtenerDistribucionPresupuestos(listaHojas, false);
 }
 
 ////////////////////////////////////////////////////////// BALANCE GENERAL COMPARACIÓN
@@ -1551,7 +1547,7 @@ function balanceGeneralComparacion(annio) {
     try {
       var nombreHoja = hoja.getName();
       var mes = nombreHoja.split(" de ")[0];
-      Logger.log('Procesando comparación: ' + nombreHoja + ' (mes: ' + mes + ')');
+      //Logger.log('Procesando comparación: ' + nombreHoja + ' (mes: ' + mes + ')');
 
       var suma = 0;
       var suma_pre = 0;
@@ -1600,7 +1596,7 @@ function balanceGeneralComparacion(annio) {
       }
       
       var filaDestino = mesAFila[mes];
-      Logger.log(`Mes: ${mes}, Fila destino para comparación: ${filaDestino}, Suma: ${suma}`);
+      //Logger.log(`Mes: ${mes}, Fila destino para comparación: ${filaDestino}, Suma: ${suma}`);
       
       if (filaDestino) {
         hojaBalance.getRange(filaDestino, 7).setValue(suma);
@@ -1610,14 +1606,54 @@ function balanceGeneralComparacion(annio) {
         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-        Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes} (comparación)`);
+       // Logger.log(`Valor ${suma} escrito en fila ${filaDestino} para ${mes} (comparación)`);
       }
     } catch (error) {
-      Logger.log(`Error en ${nombreHoja} (comparación): ${error}`);
+     // Logger.log(`Error en ${nombreHoja} (comparación): ${error}`);
     }
   }
+      // Agregar la nueva funcionalidad de distribución de presupuestos
+  obtenerDistribucionPresupuestos(listaHojas, true);
 }
 
+
+// Nueva función dedicada para actualizar el Balance General
+function actualizarBalanceGeneral() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
+  
+  if (!hojaBalance) {
+    Browser.msgBox("Error", "No se encontró la hoja 'BALANCE GENERAL'", Browser.Buttons.OK);
+    return;
+  }
+  
+  // Mostrar mensaje de inicio
+  SpreadsheetApp.getActiveSpreadsheet().toast("Iniciando actualización del Balance General...", "Actualizando");
+  
+  // Obtener los años seleccionados
+  var anioTabla1 = hojaBalance.getRange("A2").getValue();
+  var anioTabla2 = hojaBalance.getRange("A26").getValue();
+  
+  // Actualizar las tablas según los años seleccionados
+  if (anioTabla1) {
+    var anioEntero1 = parseInt(anioTabla1, 10);
+    if (!isNaN(anioEntero1)) {
+      SpreadsheetApp.getActiveSpreadsheet().toast("Actualizando tabla principal para año " + anioEntero1, "Actualizando");
+      balanceGeneral(anioEntero1);
+    }
+  }
+  
+  if (anioTabla2) {
+    var anioEntero2 = parseInt(anioTabla2, 10);
+    if (!isNaN(anioEntero2)) {
+      SpreadsheetApp.getActiveSpreadsheet().toast("Actualizando tabla de comparación para año " + anioEntero2, "Actualizando");
+      balanceGeneralComparacion(anioEntero2);
+    }
+  }
+  
+  // Mostrar mensaje de finalización
+  Browser.msgBox("Actualización Completa", "Las tablas del Balance General han sido actualizadas correctamente.", Browser.Buttons.OK);
+}
 
 // Función para forzar la actualización de ambas tablas
 function actualizarTodasLasTablas() {
@@ -1625,7 +1661,7 @@ function actualizarTodasLasTablas() {
   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
   
   if (!hojaBalance) {
-    Logger.log("La hoja 'BALANCE GENERAL' no existe.");
+    //Logger.log("La hoja 'BALANCE GENERAL' no existe.");
     return;
   }
   
@@ -1645,6 +1681,7 @@ function actualizarTodasLasTablas() {
     var anioEntero2 = parseInt(anioTabla2, 10);
     if (!isNaN(anioEntero2)) {
       balanceGeneralComparacion(anioEntero2);
+         balanceGeneralComparacion(anioEntero2);
     }
   }
 }
@@ -1858,3 +1895,113 @@ function actualizarVistaCobros() {
         hojaVista.getRange(6, 1).setValue("No hay datos para mostrar");
     }
 }
+
+///////////////Balance general extra
+// Función para obtener la distribución de presupuestos por rangos de montos
+function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
+  // Mapeo de meses a filas (tabla principal o comparación)
+  const mesAFila = esComparacion ? {
+    "Enero": 29, "Febrero": 30, "Marzo": 31, "Abril": 32,
+    "Mayo": 33, "Junio": 34, "Julio": 35, "Agosto": 36,
+    "Septiembre": 37, "Octubre": 38, "Noviembre": 39, "Diciembre": 40
+  } : {
+    "Enero": 5, "Febrero": 6, "Marzo": 7, "Abril": 8,
+    "Mayo": 9, "Junio": 10, "Julio": 11, "Agosto": 12,
+    "Septiembre": 13, "Octubre": 14, "Noviembre": 15, "Diciembre": 16
+  };
+  
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
+  
+  // Limpiar la tabla de distribución correspondiente
+  if (esComparacion) {
+    hojaBalance.getRange("K29:O40").clearContent();
+    hojaBalance.getRange("R29:V40").clearContent();
+  } else {
+    hojaBalance.getRange("K5:O16").clearContent();
+    hojaBalance.getRange("R5:V16").clearContent();
+  }
+  
+  // Definir los rangos de montos
+  const rangos = [
+    { min: 0, max: 1000 },      // Columna K (0-1000)
+    { min: 1000, max: 3000 },   // Columna L (1000-3000)
+    { min: 3000, max: 6000 },   // Columna M (3000-6000)
+    { min: 6000, max: 10000 },  // Columna N (6000-10000)
+    { min: 10000, max: Infinity } // Columna O (>10000)
+  ];
+  
+  // Procesar cada hoja mensual
+  for (let hoja of hojas) {
+    try {
+      var nombreHoja = hoja.getName();
+      var mes = nombreHoja.split(" de ")[0];
+      //Logger.log('Procesando distribución para: ' + nombreHoja + ' (mes: ' + mes + ')');
+      
+      var lastRow = hoja.getLastRow();
+      var startRow = 18; // Primera fila de datos
+      
+      // Inicializar contadores para cada rango
+      var contadores = [0, 0, 0, 0, 0];
+
+      var count_tipol = [0, 0, 0, 0, 0];
+      
+      if (lastRow >= startRow) {
+        // Obtener los importes presupuestados (columna 11)
+        var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
+
+        var tipologias = hoja.getRange(18, 7, lastRow - 17, 1).getValues();
+        var subtipologias = hoja.getRange(18, 8, lastRow - 17, 1).getValues();
+
+        for (let i = 0; i < tipologias.length; i++) {
+          if (tipologias[i][0] === "1VTA") {
+            count_tipol[0]++;
+          } else if(tipologias[i][0] ==="AMP") {
+            count_tipol[1]++;
+          } else if (tipologias[i][0] ==="Criba") {
+            count_tipol[2]++;
+          } else if (tipologias[i][0] ==="OC") {
+              if (subtipologias[i][0] === "OC Llamado"){
+                count_tipol[3]++;
+              } else if (subtipologias[i][0] === "OC Vino él"){
+                count_tipol[4]++;
+              }
+          }
+        }
+        
+        // Contar presupuestos por rango
+        for (let i = 0; i < presupuestos.length; i++) {
+          var importe = presupuestos[i][0];
+          
+          // Solo considerar valores numéricos válidos
+          if (typeof importe === 'number' && !isNaN(importe)) {
+            // Clasificar en el rango correspondiente
+            for (let j = 0; j < rangos.length; j++) {
+              if (importe > rangos[j].min && importe <= rangos[j].max) {
+                contadores[j]++;
+                break;
+              }
+            }
+          }
+        }
+      }
+      
+      // Escribir resultados en la hoja de balance
+      var filaDestino = mesAFila[mes];
+      if (filaDestino) {
+        for (let i = 0; i < contadores.length; i++) {
+          hojaBalance.getRange(filaDestino, 11 + i).setValue(contadores[i]);
+        }
+       // Logger.log(`Contadores para ${mes}: ${contadores.join(', ')}`);
+      }
+      for (let i = 0; i < count_tipol.length; i++) {
+        hojaBalance.getRange(filaDestino, 18 + i).setValue(count_tipol[i]);
+      }
+      
+    } catch (error) {
+      Logger.log(`Error al procesar distribución para ${nombreHoja}: ${error}`);
+    }
+  }
+  
+}
+
