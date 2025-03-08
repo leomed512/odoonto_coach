@@ -596,7 +596,8 @@ function actualizarTablaResumen(hojaMes) {
             ["TOTAL PRESUPUESTADO", "", ""],  
             ["TOTAL ACEPTADO", "", ""],  
             ["TOTAL COBRADO", "", ""],  
-            ["PTO MEDIO", "", ""]   
+            ["PTO MEDIO", "", ""],
+            ["TOTAL PENDIENTE", "", ""],    
         ];
 
         hojaMes.getRange(1, 2, resumenEncabezados.length, 3).setValues(resumenEncabezados);
@@ -606,7 +607,7 @@ function actualizarTablaResumen(hojaMes) {
             ["B1:C1", "#00c896", true], ["B2:C2", "#f2ecff", false], ["C3:D3", "#424242", true, "#FFFFFF"],
             ["B4", "#e2e2e2", true], ["B5", "#f6f6f6", true], ["B6", "#e2e2e2", true], ["B7", "#f6f6f6", true],
             ["C4", "#f6f6f6", true], ["C5", "#e2e2e2", true], ["C6", "#f6f6f6", true], ["C7", "#e2e2e2", true],
-            ["D4", "#e2e2e2"], ["D5", "#f6f6f6"], ["D6", "#e2e2e2"]
+            ["D4", "#e2e2e2"], ["D5", "#f6f6f6"], ["D6", "#e2e2e2"], ["C8", "#f6f6f6", true], ["B8", "#e2e2e2", true]
         ];
         
         estilos.forEach(item => {
@@ -626,6 +627,7 @@ function actualizarTablaResumen(hojaMes) {
     var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
     var rangoPacientesAceptados = hojaMes.getRange(5, 4);
     var rangoPacientesCobrados = hojaMes.getRange(6, 4);
+    var rangoTotalPendiente = hojaMes.getRange(8, 3);
 
     // Extraer el nombre del mes y año de la hoja
     var nombreHoja_cobros = hojaMes.getName();
@@ -656,13 +658,10 @@ function actualizarTablaResumen(hojaMes) {
 
     rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
     rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
-
-    ///// Cuenta lo que se ha pagado que corresponde con los presupuestos de ese mes 
-    // rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!A:A,TRANSPOSE(UNIQUE(A${filaInicio}:A${ultimaFila})))`);
-    // rangoTotalCobrado.setFormula(`=SUMPRODUCT(SUMIF('Staging Cobros'!A:A,A${filaInicio}:A${ultimaFila},'Staging Cobros'!F:F))`);
+    rangoTotalPendiente.setFormula(`=C4-C5`);
 
 
-    [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio].forEach(celda => {
+    [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio, rangoTotalPendiente].forEach(celda => {
         celda.setNumberFormat("€#,##0.00");
     });
 
