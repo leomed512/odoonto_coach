@@ -33,7 +33,7 @@ function filtrarPorFecha(hojaMes, startDateStr, endDateStr) {
   var ultimaFila = parrillaMes.getLastRow();
   
   // Obtener los datos desde la fila 18 hasta la última fila y de la columna A a N (1-14)
-  var rango = parrillaMes.getRange(18, 1, ultimaFila - 17, 14);
+  var rango = parrillaMes.getRange(11, 1, ultimaFila - 10, 14);
   var valores = rango.getValues();
   
   // Filtrar los registros dentro del rango de fechas en la columna B (columna 2 en índice base 1)
@@ -497,3 +497,4 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
+

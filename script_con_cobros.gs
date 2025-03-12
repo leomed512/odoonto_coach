@@ -72,7 +72,7 @@ function guardarDatosEnTabla2() {
     hojaStagingCobros = crearVistaCobros(ss);
     }
 
-    var filaEscribir = hojaMes.getLastRow() < 17 ? 18 : hojaMes.getLastRow() + 1;
+    var filaEscribir = hojaMes.getLastRow() < 10 ? 11 : hojaMes.getLastRow() + 1;
 
     var nuevaFila = [
         transactionId,     // ID Transacción
@@ -118,11 +118,11 @@ function crearHojaMes(ss, nombreMes) {
         " PTO ", "IMPORTE ACEPTADO", "FECHA INICIO / CONCRETAR", "OBSERVACIONES"
     ];
 
-    hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados])
+    hojaMes.getRange(10, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
-    hojaMes.getRange(17, 1, 1, encabezados.length).createFilter();
+    hojaMes.getRange(10, 1, 1, encabezados.length).createFilter();
     hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
-    hojaMes.setFrozenRows(17);
+    hojaMes.setFrozenRows(10);
     return hojaMes;
 }
 
@@ -617,7 +617,7 @@ function actualizarTablaResumen(hojaMes) {
             if (item.length === 4) celda.setFontColor(item[3]);
         });
     }
-    var filaInicio = 18;
+    var filaInicio = 11;
     var ultimaFila = hojaMes.getLastRow();
 
     var rangoTotalPresupuestado = hojaMes.getRange(4, 3);
@@ -723,7 +723,7 @@ function onEdit(e) {
     if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros")&& hoja.getName() !== "Vista Previsiones") {
         var estadoNuevo = rango.getValue();
         var fila = rango.getRow();
-        if (fila < 18) return;
+        if (fila < 11) return;
 
         var estadoAnterior = e.oldValue;
 
@@ -1257,7 +1257,7 @@ function obtenerSumasHojas(hojas) {
       var pac_acep = 0;
 
       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
-      var startRow = 18; // Primera fila de interés
+      var startRow = 11; // Primera fila de interés
       if (lastRow >= startRow) {
         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
@@ -1414,18 +1414,6 @@ function actualizarFiltroDeAnios() {
 
 
 
-// function aplicarFiltroPorAnio(anio) {
-//   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("BALANCE GENERAL");
-//   Logger.log("Aplicando filtro con el año: " + anio);
-
-// }
-    
-// function balanceGeneral(annio) {
-//   //var anios = obtenerAniosDeHojas()
-//   var listaHojas = obtenerHojasPorMesYAnio(annio)
-//   var sumas = obtenerSumasHojas(listaHojas)
-// }
-// Reemplaza la función balanceGeneral para que use la misma lógica que balanceGeneralComparacion
 function balanceGeneral(annio) {
   var listaHojas = obtenerHojasPorMesYAnio(annio);
   var mesAFila = {
@@ -1459,7 +1447,7 @@ function balanceGeneral(annio) {
       var pac_acep = 0;
 
       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
-      var startRow = 18; // Primera fila de interés
+      var startRow = 11; // Primera fila de interés
       if (lastRow >= startRow) {
         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
@@ -1556,7 +1544,7 @@ function balanceGeneralComparacion(annio) {
       var pac_acep = 0;
 
       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
-      var startRow = 18; // Primera fila de interés
+      var startRow = 11; // Primera fila de interés
       if (lastRow >= startRow) {
         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
@@ -1942,7 +1930,7 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
       //Logger.log('Procesando distribución para: ' + nombreHoja + ' (mes: ' + mes + ')');
       
       var lastRow = hoja.getLastRow();
-      var startRow = 18; // Primera fila de datos
+      var startRow = 11; // Primera fila de datos
       
       // Inicializar contadores para cada rango
       var contadores = [0, 0, 0, 0, 0];
@@ -1953,8 +1941,8 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
         // Obtener los importes presupuestados (columna 11)
         var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
 
-        var tipologias = hoja.getRange(18, 7, lastRow - 17, 1).getValues();
-        var subtipologias = hoja.getRange(18, 8, lastRow - 17, 1).getValues();
+        var tipologias = hoja.getRange(11, 7, lastRow - 10, 1).getValues();
+        var subtipologias = hoja.getRange(11, 8, lastRow - 10, 1).getValues();
 
         for (let i = 0; i < tipologias.length; i++) {
           if (tipologias[i][0] === "1VTA") {
@@ -2007,39 +1995,7 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
   }
   
 }
-// function actualizarKPIs() {
-//     var ss = SpreadsheetApp.getActiveSpreadsheet();
-//     var hojaKPIs = ss.getSheetByName('Análisis de KPIs');
-    
-//     if (!hojaKPIs) {
-//         Browser.msgBox("Error", "No se encontró la hoja 'Análisis de KPIs'", Browser.Buttons.OK);
-//         return;
-//     }
-    
-//     // Mostrar mensaje de inicio
-//     SpreadsheetApp.getActiveSpreadsheet().toast("Iniciando actualización de KPIs...", "Actualizando");
-    
-//     // Obtener las fechas seleccionadas actualmente
-//     var fechaInicio = hojaKPIs.getRange('D2').getValue();
-//     var fechaFin = hojaKPIs.getRange('D3').getValue();
-    
-//     if (!fechaInicio || !fechaFin) {
-//         Browser.msgBox("Error", "No hay fechas seleccionadas para actualizar KPIs. Por favor seleccione un rango de fechas primero.", Browser.Buttons.OK);
-//         return;
-//     }
-    
-//     // Verificar que las fechas sean del mismo mes
-//     if (!sonDelMismoMes(fechaInicio, fechaFin)) {
-//         Browser.msgBox("Error", "Las fechas deben ser del mismo mes para actualizar KPIs.", Browser.Buttons.OK);
-//         return;
-//     }
-    
-//     // Ejecutar la función que actualiza los KPIs con las fechas actuales
-//     saveDateRange(fechaInicio, fechaFin);
-    
-//     // Mostrar mensaje de finalización
-//     Browser.msgBox("Actualización Completa", "Los KPIs han sido actualizados correctamente para el rango de fechas seleccionado.", Browser.Buttons.OK);
-// }
+
 function actualizarKPIs() {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
