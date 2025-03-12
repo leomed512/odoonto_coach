@@ -430,9 +430,9 @@ function saveDateRange(startDate, endDate) {
             estetica++;
           } else if (row[7] === "Tarjeta salud") {
             tarjetaSalud++;
-          } else if (row[7] === "Forma prepo") {
+          } else if (row[7] === "Forma de pago") {
             formaPrepo++;
-          } else if (row[7] === "Reseña") {
+          } else if (row[7] === "Conservadora") {
             resenia++;
           }
         } else if (row[6] === "OC") {
@@ -497,4 +497,3 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
-

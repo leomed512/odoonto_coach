@@ -115,13 +115,14 @@ function crearHojaMes(ss, nombreMes) {
     var encabezados = [
         "ID TRANSACCIÓN", "FECHA PRESUPUESTO", "PACIENTE", "TELÉFONO", "DOCTOR/A", 
         "ATP", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", "PLAN DE CITAS", "ESTADO", 
-        "IMPORTE PRESUPUESTADO", "IMPORTE ACEPTADO", "FECHA INICIO / CONCRETAR", "OBSERVACIONES"
+        " PTO ", "IMPORTE ACEPTADO", "FECHA INICIO / CONCRETAR", "OBSERVACIONES"
     ];
 
     hojaMes.getRange(17, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
     hojaMes.getRange(17, 1, 1, encabezados.length).createFilter();
     hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
+    hojaMes.setFrozenRows(17);
     return hojaMes;
 }
 
@@ -326,7 +327,7 @@ hojaVista.getRange("B2").setDataValidation(validacionAnno);
 var meses = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-    "Ver todo el año"  // Añade esta nueva opción
+    "Ver todo el año", "Actualizar" 
 ];
 
 var validacionMes = SpreadsheetApp.newDataValidation()
@@ -338,12 +339,11 @@ hojaVista.getRange("B3").setDataValidation(validacionMes);
 /// columnas de control de fecha
 hojaVista.getRange("Q1").setValue("Fechas de control");
 hojaVista.getRange("Q2:Q3").setValues([["Fecha inicio"], ["Fecha fin"]]);
-hojaVista.getRange("Q2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
-hojaVista.getRange("Q3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EOMONTH(Q2,0))');
+hojaVista.getRange("Q2").setFormula('=IF(OR(B3="Ver todo el año",B3="Actualizar"),DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
+hojaVista.getRange("Q3").setFormula('=IF(OR(B3="Ver todo el año",B3="Actualizar"),DATE(B2,12,31),EOMONTH(Q2,0))');
 
 // Ocultar las columnas de control
 hojaVista.hideColumns(17, 1); // Oculta la columna de control
-
 
 // Encabezados de la tabla
 var encabezados = [
@@ -408,7 +408,7 @@ var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encab
         hojaVista.setColumnWidth(i, anchoActual + margenExtra);
       }
     }
-    
+    hojaVista.setColumnWidths(1,2, 130);
 }
 
 ///// Actualizar filtro de fechas en Vista Previsiones
@@ -497,7 +497,7 @@ if (!anno) return; // Solo requerimos el año
     // Definir fechas de inicio y fin según si hay mes seleccionado
     var fechaInicio, fechaFin;
 
-        if (mes && mes !== "Ver todo el año") {
+        if (mes && mes !== "Ver todo el año" && mes !== "Actualizar") {
         // Si hay mes seleccionado y no es "Ver todo el año", usar las fechas calculadas en Q2 y Q3
         fechaInicio = hojaVista.getRange("Q2").getValue();
         fechaFin = hojaVista.getRange("Q3").getValue();
@@ -594,10 +594,10 @@ function actualizarTablaResumen(hojaMes) {
             ["Gerencia@odontologycoach.cr", "", ""],  
             ["", "IMPORTES", "N° PACIENTES"],  
             ["TOTAL PRESUPUESTADO", "", ""],  
-            ["TOTAL ACEPTADO", "", ""],  
+            ["TOTAL ACEPTADO", "", ""], 
+            ["TOTAL PENDIENTE", "", ""], 
             ["TOTAL COBRADO", "", ""],  
-            ["PTO MEDIO", "", ""],
-            ["TOTAL PENDIENTE", "", ""],    
+            ["PTO MEDIO", "", ""]                
         ];
 
         hojaMes.getRange(1, 2, resumenEncabezados.length, 3).setValues(resumenEncabezados);
@@ -607,7 +607,7 @@ function actualizarTablaResumen(hojaMes) {
             ["B1:C1", "#00c896", true], ["B2:C2", "#f2ecff", false], ["C3:D3", "#424242", true, "#FFFFFF"],
             ["B4", "#e2e2e2", true], ["B5", "#f6f6f6", true], ["B6", "#e2e2e2", true], ["B7", "#f6f6f6", true],
             ["C4", "#f6f6f6", true], ["C5", "#e2e2e2", true], ["C6", "#f6f6f6", true], ["C7", "#e2e2e2", true],
-            ["D4", "#e2e2e2"], ["D5", "#f6f6f6"], ["D6", "#e2e2e2"], ["C8", "#f6f6f6", true], ["B8", "#e2e2e2", true]
+            ["D4", "#e2e2e2"], ["D5", "#f6f6f6"], ["D6", "#e2e2e2"], ["C8", "#f6f6f6", true], ["B8", "#e2e2e2", true],  ["D7", "#f6f6f6"],
         ];
         
         estilos.forEach(item => {
@@ -622,12 +622,13 @@ function actualizarTablaResumen(hojaMes) {
 
     var rangoTotalPresupuestado = hojaMes.getRange(4, 3);
     var rangoTotalAceptado = hojaMes.getRange(5, 3);
-    var rangoTotalCobrado = hojaMes.getRange(6, 3);
-    var rangoPtoMedio = hojaMes.getRange(7, 3);
     var rangoPacientesPresupuestados = hojaMes.getRange(4, 4);
     var rangoPacientesAceptados = hojaMes.getRange(5, 4);
-    var rangoPacientesCobrados = hojaMes.getRange(6, 4);
-    var rangoTotalPendiente = hojaMes.getRange(8, 3);
+    var rangoPacientesCobrados = hojaMes.getRange(7, 4);
+    var rangoTotalPendiente = hojaMes.getRange(6, 3);
+
+    var rangoTotalCobrado = hojaMes.getRange(7, 3);
+    var rangoPtoMedio = hojaMes.getRange(8, 3);
 
     // Extraer el nombre del mes y año de la hoja
     var nombreHoja_cobros = hojaMes.getName();
@@ -767,7 +768,7 @@ function onOpen() {
     var ui = SpreadsheetApp.getUi();
     // Crear un nuevo menú para ACTUALIZAR y CREAR previsiones
     ui.createMenu('Previsiones')
-        .addItem('Actualizar Previsión', 'actualizarPrevisionManual')
+        .addItem('Confirmar Previsión', 'actualizarPrevisionManual')
         .addItem('Agregar Previsión', 'agregarPrevisionManual')
         .addToUi();
 
@@ -1031,7 +1032,7 @@ function crearStagingCobros(ss) {
     var hojaCobros = ss.insertSheet("Staging Cobros");
     
     // Tabla principal de staging de cobros
-    var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO", "TRATAMIENTO"];
+    var encabezados = ["ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "COBRO", "TRATAMIENTO"];
 
     hojaCobros.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold")
@@ -1747,13 +1748,13 @@ function configurarVistaCobros(hojaVista, ss) {
     // Fechas de control (ocultas)
     hojaVista.getRange("P1").setValue("Fechas de control");
     hojaVista.getRange("P2:P3").setValues([["Fecha inicio"], ["Fecha fin"]]);
-    hojaVista.getRange("P2").setFormula('=IF(B3="Ver todo el año",DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
-    hojaVista.getRange("P3").setFormula('=IF(B3="Ver todo el año",DATE(B2,12,31),EOMONTH(P2,0))');
+    hojaVista.getRange("P2").setFormula('=IF(OR(B3="Ver todo el año",B3="Actualizar"),DATE(B2,1,1),DATE(B2,MATCH(B3,{"Enero";"Febrero";"Marzo";"Abril";"Mayo";"Junio";"Julio";"Agosto";"Septiembre";"Octubre";"Noviembre";"Diciembre"},0),1))');
+    hojaVista.getRange("P3").setFormula('=IF(OR(B3="Ver todo el año",B3="Actualizar"),DATE(B2,12,31),EOMONTH(P2,0))');
     hojaVista.hideColumns(16, 1);
 
     // Encabezados de la tabla
     var encabezados = [
-        "ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "MONTO", "TRATAMIENTO"
+        "ID TRANSACCIÓN", "FECHA DE COBRO", "PACIENTE", "DOCTOR", "TIPO DE PAGO", "COBRO", "TRATAMIENTO"
     ];
 
     hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -1775,7 +1776,7 @@ function configurarVistaCobros(hojaVista, ss) {
     var meses = [
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-        "Ver todo el año"
+        "Ver todo el año", "Actualizar"
     ];
 
     var validacionMes = SpreadsheetApp.newDataValidation()
@@ -1786,6 +1787,7 @@ function configurarVistaCobros(hojaVista, ss) {
 
     // Añadir tabla resumen
     configurarTablaResumenCobros(hojaVista);
+    hojaVista.setColumnWidths(1,7, 150);
 }
 
 function configurarTablaResumenCobros(hojaVista) {
@@ -1868,7 +1870,7 @@ function actualizarVistaCobros() {
     // Definir fechas de inicio y fin según si hay mes seleccionado
     var fechaInicio, fechaFin;
 
-    if (mes && mes !== "Ver todo el año") {
+    if (mes && mes !== "Ver todo el año" && mes !== "Actualizar") {
         fechaInicio = hojaVista.getRange("P2").getValue();
         fechaFin = hojaVista.getRange("P3").getValue();
     } else {
