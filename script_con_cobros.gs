@@ -1991,21 +1991,21 @@ function configurarTablaResumenCobros(hojaVista) {
         ["Total Cobrado", "=SUM(F6:F)", ""]
     ];
  
-    var rangoResumen = hojaVista.getRange(1, 12, resumenEncabezados.length, 3);
+    var rangoResumen = hojaVista.getRange(1, 9, resumenEncabezados.length, 3);
     rangoResumen.setValues(resumenEncabezados);
  
     // Aplicar formatos
-    hojaVista.getRange("L1:M1")
+    hojaVista.getRange("I1:J1")
         .setBackground("#424242")
         .setFontColor("white")
         .setFontWeight("bold")
         .merge();
     
-    hojaVista.getRange("M2").setNumberFormat("€#,##0.00");
-    hojaVista.getRange("L2:M2").setBackground("#f6f6f6");
+    hojaVista.getRange("J2").setNumberFormat("€#,##0.00");
+    hojaVista.getRange("I2:J2").setBackground("#f6f6f6");
     
     // Bordes
-    hojaVista.getRange("L1:M2").setBorder(true, true, true, true, true, true);
+    hojaVista.getRange("I1:J2").setBorder(true, true, true, true, true, true);
 }
 
 function actualizarDropdownAnosCobros() {
