@@ -398,7 +398,7 @@ function saveDateRange(startDate, endDate) {
     var noAceptado = 0;
 
     var totalDrs = 0;
-
+    var irrigadores = 0;
     var implante = 0;
     var ortodoncia = 0;
     var protesisRemovible = 0;
@@ -434,6 +434,8 @@ function saveDateRange(startDate, endDate) {
             formaPrepo++;
           } else if (row[7] === "Conservadora") {
             resenia++;
+            }else if (row[7] === "Irrigadores") {
+            irrigadores++;
           }
         } else if (row[6] === "OC") {
           if (row[7] === "OC Llamado") {
@@ -456,7 +458,7 @@ function saveDateRange(startDate, endDate) {
     });
     totalDrs = vta1 + amp + criba + llamado + vinoEl;
     var datos = [drs, vta1, amp, criba, llamado, vinoEl, totalDrs, aceptado, pendienteCita, pendienteSinCita, noAceptado];
-    var datos2 = [drs, "", ortodoncia, protesisRemovible, implante, estetica, protesisFija, tarjetaSalud, resenia, formaPrepo]
+    var datos2 = [drs, irrigadores, ortodoncia, protesisRemovible, implante, estetica, protesisFija, tarjetaSalud, resenia, formaPrepo]
     sheet.getRange(filaDestino, 1, 1, datos.length).setValues([datos]);
     var columnaInicioDatos2 = datos.length + 3;
     sheet.getRange(filaDestino, columnaInicioDatos2, 1, datos2.length).setValues([datos2]);
@@ -497,4 +499,3 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
-

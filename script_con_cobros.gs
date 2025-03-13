@@ -268,20 +268,20 @@ function configurarVistaPrevisiones(hojaVista, ss) {
     hojaVista.getRange("B3").setHorizontalAlignment("right");
 
 ////INSTRUCCIONES
-    hojaVista.getRange(1, 5, 1, 6).merge().setValue("Actualizar Previsión: Cuándo? al registrar un presupuesto NUEVO como 'ACEPTADO' o cuando cambia de ESTADO a 'ACEPTADO' en la parrilla mensual. Qué hacer? modifique las columnas PREV ESPERADA y CITA, TRATAMIENTO y TIPO DE PAGO. Paso final: seleccione toda la fila, vaya a MENÚ > PREVISIONES > ACTUALIZAR PREVISIÓN.")
+    hojaVista.getRange(1, 5, 1, 6).merge().setValue("CONFIRMAR PREVISIÓN: Luego de registrar un presupuesto debe terminar de configurar y confirmar la(s) previsiones con la Previsión esperada (€), la Cita (fecha), el Tipo de Pago y Tratamiento.\nSi desea crear varias Previsiones para un mismo presupuesto puede modificar los datos (Prev esperada, Cita) en un registro existente (o copiar & pegar) y proceder a Confirmar")
         .setFontSize(9)
         .setBackground("#00c896")
         .setFontColor("#424242")
         .setWrap(true)
         .setVerticalAlignment("middle");
-      hojaVista.getRange(2, 5, 1, 6).merge().setValue("Agregar Previsión: Cuándo? para crear varias citas/pagos para el mismo cliente / presupuesto. Qué hacer? copie y pegue TODA la fila deseada, modifique los datos en las columnas PREV ESPERADA y CITA, Tratamiento (opcional). Paso final: seleccione toda la fila modificada, vaya a MENÚ > PREVISIONES > AGREGAR PREVISIÓN.")
+      hojaVista.getRange(2, 5, 1, 6).merge().setValue("Seleccione toda la fila, vaya a MENÚ > PREVISIONES > CONFIRMAR PREVISIÓN. \nEsto le dará la opción de actualizar una previsión existente o agregar una nueva")
       .setFontSize(9)
       .setBackground("#424242")
       .setFontColor("#FFFFFF")
       .setWrap(true)
       .setVerticalAlignment("middle");
 
-      hojaVista.getRange(3, 5, 1, 6).merge().setValue("Cobros: Cuándo? para registrar pago de una previsión. Qué hacer? ingrese en PREV PAGADA el monto pagado. Paso final: seleccione toda la fila modificada, en el MENÚ > COBROS > EJECUTAR COBRO.")
+      hojaVista.getRange(3, 5, 1, 6).merge().setValue("COBROS: registrar pago de una previsión. ingrese en PREV PAGADA el monto pagado. Paso final: seleccione toda la fila modificada, en el MENÚ > COBROS > EJECUTAR COBRO.")
       .setFontSize(9)
       .setBackground("#98e0fa")
       .setFontColor("#080808")
@@ -409,6 +409,7 @@ var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encab
       }
     }
     hojaVista.setColumnWidths(1,2, 130);
+    hojaVista.setFrozenRows(5);
 }
 
 ///// Actualizar filtro de fechas en Vista Previsiones
@@ -768,8 +769,7 @@ function onOpen() {
     var ui = SpreadsheetApp.getUi();
     // Crear un nuevo menú para ACTUALIZAR y CREAR previsiones
     ui.createMenu('Previsiones')
-        .addItem('Confirmar Previsión', 'actualizarPrevisionManual')
-        .addItem('Agregar Previsión', 'agregarPrevisionManual')
+        .addItem('Confirmar Previsión', 'manejarPrevision')
         .addToUi();
 
     ui.createMenu('Cobros')
@@ -876,6 +876,212 @@ function agregarPrevisionManual() {
     // Mostrar mensaje de éxito
     Browser.msgBox("Éxito", "La Previsión adicional se ha agregado correctamente", Browser.Buttons.OK);
 }
+
+/////////////////////////////////////////
+
+function manejarPrevision() {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var hojaVista = ss.getActiveSheet();
+    
+    // Verificar que estamos en la hoja correcta
+    if (hojaVista.getName() !== "Vista Previsiones") {
+        Browser.msgBox("Error", "Por favor, seleccione una fila en la hoja 'Vista Previsiones'", Browser.Buttons.OK);
+        return;
+    }
+    
+    var fila = hojaVista.getActiveCell().getRow();
+    
+    // Verificar que la fila seleccionada está en la zona de datos (después de la fila 5)
+    if (fila <= 5) {
+        Browser.msgBox("Error", "Por favor, seleccione una fila de datos (después de la fila 5)", Browser.Buttons.OK);
+        return;
+    }
+    
+    // Obtener los datos de la fila seleccionada
+    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
+    
+    // Verificar que los datos mínimos necesarios estén presentes
+    if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4]) {
+        Browser.msgBox("Error", "Datos incompletos. Asegúrese de completar: ID Transacción, Paciente, Doctor y Prev Total.", Browser.Buttons.OK);
+        return;
+    }
+    
+    // Obtener o crear la hoja Staging Previsiones
+    var hojaStaging = ss.getSheetByName("Staging Previsiones");
+    if (!hojaStaging) {
+        hojaStaging = crearHojaPrevisiones(ss);
+    }
+
+    // Extraer datos necesarios
+    var transactionId = datosFila[0];     // ID Transacción
+    var paciente = datosFila[2];          // Paciente
+    var doctor = datosFila[3];            // Doctor
+    var importeTotal = datosFila[4];      // Importe Total
+    var prevEsperada = datosFila[5];      // Previsión esperada
+    var prevPagada = datosFila[6];        // Previsión pagada
+    var saldoPendiente = datosFila[7];    // Saldo pendiente
+    var tipoPago = datosFila[8];          // Tipo de pago
+    var cita = datosFila[9];              // Fecha de cita
+    var tratamiento = datosFila[10];      // Tratamiento
+    var fechaInicio = cita || new Date(); // Usar fecha de cita o fecha actual como fecha de inicio
+    
+    // Determinar el estado de pago
+    var estadoPago = saldoPendiente === 0 ? "PAGADO" : "PENDIENTE";
+    
+    // Obtener todos los registros del staging
+    var dataStaging = hojaStaging.getDataRange().getValues();
+    
+    // Primero, determinar si se está intentando crear una nueva previsión o actualizar una existente
+    // Preguntamos directamente al usuario qué acción desea realizar
+    var ui = SpreadsheetApp.getUi();
+    var accion = ui.alert(
+        "Confirmar Previsión",
+        "¿Qué desea hacer?\n\n" +
+        "• Seleccione 'Yes' para ACTUALIZAR una previsión existente\n" +
+        "• Seleccione 'No' para CREAR una NUEVA previsión de un presupuesto existente",
+        ui.ButtonSet.YES_NO_CANCEL
+    );
+    if (accion === ui.Button.CANCEL) {
+    Browser.msgBox("Operación cancelada", "No se ha realizado ninguna acción", Browser.Buttons.OK);
+    return;
+} 
+    // Crear un registro nuevo
+    if (accion === ui.Button.NO) {
+        var ultimaFila = hojaStaging.getLastRow() + 1;
+        var datosRegistro = [
+            transactionId, fechaInicio, paciente, doctor, importeTotal,
+            prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
+            tratamiento, estadoPago
+        ];
+        
+        hojaStaging.getRange(ultimaFila, 1, 1, datosRegistro.length).setValues([datosRegistro]);
+        aplicarFormatos(hojaStaging, ultimaFila);
+        Browser.msgBox("Éxito", "Se ha creado una nueva previsión", Browser.Buttons.OK);
+    } 
+    // Actualizar un registro existente
+    else {
+        // Buscar registros que coincidan con los datos fundamentales
+        var registrosCoincidentes = [];
+        for (var i = 1; i < dataStaging.length; i++) {
+            if (dataStaging[i][0] === transactionId && 
+                dataStaging[i][2] === paciente && 
+                dataStaging[i][3] === doctor && 
+                dataStaging[i][4] === importeTotal) {
+                
+                registrosCoincidentes.push({
+                    fila: i + 1,
+                    datos: dataStaging[i]
+                });
+            }
+        }
+        
+        // Si no hay coincidencias a pesar de que se eligió actualizar
+        if (registrosCoincidentes.length === 0) {
+            var respuesta = ui.alert(
+                "No se encontraron registros existentes",
+                "No se encontraron registros que coincidan con los datos básicos. ¿Desea crear un nuevo registro en su lugar?",
+                ui.ButtonSet.YES_NO
+            );
+            
+            if (respuesta === ui.Button.YES) {
+                // Crear un nuevo registro
+                var ultimaFila = hojaStaging.getLastRow() + 1;
+                var datosRegistro = [
+                    transactionId, fechaInicio, paciente, doctor, importeTotal,
+                    prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
+                    tratamiento, estadoPago
+                ];
+                
+                hojaStaging.getRange(ultimaFila, 1, 1, datosRegistro.length).setValues([datosRegistro]);
+                aplicarFormatos(hojaStaging, ultimaFila);
+                Browser.msgBox("Éxito", "Se ha creado una nueva previsión", Browser.Buttons.OK);
+            } else {
+                Browser.msgBox("Operación cancelada", "No se ha realizado ninguna acción", Browser.Buttons.OK);
+                return;
+            }
+        }
+        // Si hay una única coincidencia, actualizar directamente
+        else if (registrosCoincidentes.length === 1) {
+            var filaEncontrada = registrosCoincidentes[0].fila;
+            var datosRegistro = [
+                transactionId, fechaInicio, paciente, doctor, importeTotal,
+                prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
+                tratamiento, estadoPago
+            ];
+            
+            hojaStaging.getRange(filaEncontrada, 1, 1, datosRegistro.length).setValues([datosRegistro]);
+            Browser.msgBox("Éxito", "La previsión ha sido actualizada", Browser.Buttons.OK);
+        }
+        // Si hay múltiples coincidencias, mostrar opciones
+        else {
+            // Crear una lista descriptiva para cada registro coincidente
+            var descripcionesRegistros = registrosCoincidentes.map(function(reg, index) {
+                var fechaReg = reg.datos[1] instanceof Date ? 
+                    Utilities.formatDate(reg.datos[1], Session.getScriptTimeZone(), "dd/MM/yyyy") : 
+                    String(reg.datos[1]);
+                var prevEsperadaReg = reg.datos[5] !== "" ? reg.datos[5] : "No definida";
+                var tratamientoReg = reg.datos[10] !== "" ? reg.datos[10] : "No definido";
+                return (index + 1) + ". Fecha: " + fechaReg + ", Prev Esperada: " + prevEsperadaReg + 
+                      ", Tratamiento: " + tratamientoReg;
+            });
+            
+            // Mostrar lista y pedir selección
+            var seleccion = ui.prompt(
+                "Seleccione la previsión a actualizar",
+                "Se encontraron " + registrosCoincidentes.length + " previsiones para este paciente. Ingrese el número de la previsión a actualizar:\n\n" +
+                descripcionesRegistros.join("\n"),
+                ui.ButtonSet.OK_CANCEL
+            );
+            
+            if (seleccion.getSelectedButton() === ui.Button.OK) {
+                var indice = parseInt(seleccion.getResponseText()) - 1;
+                if (indice >= 0 && indice < registrosCoincidentes.length) {
+                    var filaEncontrada = registrosCoincidentes[indice].fila;
+                    var datosRegistro = [
+                        transactionId, fechaInicio, paciente, doctor, importeTotal,
+                        prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
+                        tratamiento, estadoPago
+                    ];
+                    
+                    hojaStaging.getRange(filaEncontrada, 1, 1, datosRegistro.length).setValues([datosRegistro]);
+                    Browser.msgBox("Éxito", "La previsión seleccionada ha sido actualizada", Browser.Buttons.OK);
+                } else {
+                    Browser.msgBox("Error", "Número de previsión inválido", Browser.Buttons.OK);
+                    return;
+                }
+            } else {
+                Browser.msgBox("Operación cancelada", "No se ha realizado ninguna acción", Browser.Buttons.OK);
+                return;
+            }
+        }
+    }
+    
+    // Actualizar dropdowns y vistas
+    actualizarDropdownAnos();
+    actualizarVistaPrevisiones();
+}
+
+// Función auxiliar para aplicar formatos a un registro en Staging Previsiones
+function aplicarFormatos(hoja, fila) {
+    hoja.getRange(fila, 5).setNumberFormat("€#,##0.00"); // PREV TOTAL
+    hoja.getRange(fila, 6).setNumberFormat("€#,##0.00"); // PREV ESPERADA
+    hoja.getRange(fila, 7).setNumberFormat("€#,##0.00"); // PREV PAGADA
+    hoja.getRange(fila, 8).setNumberFormat("€#,##0.00"); // SALDO PENDIENTE
+    
+    // Validaciones
+    var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
+    hoja.getRange(fila, 9).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireValueInList(tipoPagoOpciones, true).setAllowInvalid(false).build()
+    );
+    hoja.getRange(fila, 10).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireDate().build()
+    );
+}
+
+
+//////////////////////////////////////
+
+
 
 ////// actualizar previsión (para fijar cita de previsión apropiadamente luego de registrar paciente aceptado)
 function actualizarPrevisionManual() {
@@ -1776,6 +1982,7 @@ function configurarVistaCobros(hojaVista, ss) {
     // Añadir tabla resumen
     configurarTablaResumenCobros(hojaVista);
     hojaVista.setColumnWidths(1,7, 150);
+    hojaVista.setFrozenRows(5);
 }
 
 function configurarTablaResumenCobros(hojaVista) {
@@ -1903,7 +2110,7 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
   
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
-  
+  hojaBalance.setFrozenColumns(1);
   // Limpiar la tabla de distribución correspondiente
   if (esComparacion) {
     hojaBalance.getRange("K29:O40").clearContent();
