@@ -250,8 +250,14 @@ function saveDateRange(startDate, endDate) {
   var totalProxMes = sumarColumnaFPrev(proxMesPrev);
   var datosCobros = filtrarCobrosPorRangoFechas(y, z);
   var totalCobros = sumarColumnaFPrev(datosCobros);
-  sheet.getRange("C15").setValue(totalPrevRango);
-  sheet.getRange("C16").setValue(totalPrevMes);
+
+////////////////// Ajustar las previsiones restando los cobros
+  var totalPrevRangoAjustado = totalPrevRango - totalCobros;
+  var totalPrevMesAjustado = totalPrevMes - totalCobros;
+  sheet.getRange("C15").setValue(totalPrevRangoAjustado > 0 ? totalPrevRangoAjustado : 0);
+  sheet.getRange("C16").setValue(totalPrevMesAjustado > 0 ? totalPrevMesAjustado : 0);
+  // sheet.getRange("C15").setValue(totalPrevRango);
+  // sheet.getRange("C16").setValue(totalPrevMes);
   sheet.getRange("C19").setValue(totalProxMes);
   sheet.getRange("C17").setValue(totalCobros);
 
@@ -499,3 +505,4 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
+

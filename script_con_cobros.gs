@@ -455,16 +455,18 @@ function actualizarDropdownAnos() {
 }
 ///// Tabla resumen de Vista Previsiones
 function configurarTablaResumen(hojaVista) {
+
     var resumenEncabezados = [
-        ["RESUMEN", "", ""],
-        ["Total Importe", "=SUM(E6:E)", ""],
-        ["Previsión mes actual", "=SUM(F6:F)", ""], // Nueva línea para PREV ESPERADA
+        ["RESUMEN", "", ""],  
+        ["Total Importe", "=IF(COUNTA(A6:A)=0, 0, SUM(UNIQUE(FILTER(E6:INDEX(E:E, MATCH(2, 1/(A6:A<>\"\"), 1) + 5), A6:INDEX(A:A, MATCH(2, 1/(A6:A<>\"\"), 1) + 5)<>\"\"))))", ""],
+        ["Previsión mes actual", "=IFERROR(MAX(SUM(F6:INDEX(F:F, MAX(FILTER(ROW(F6:F), F6:F<>\"\")))) - SUM(G6:INDEX(G:G, MAX(FILTER(ROW(G6:G), G6:G<>\"\")))), 0), 0)", ""],
         ["Previsión abonada", "=SUM(G6:G)", ""] // Ahora referencia a columna G
     ];
+
  
     var rangoResumen = hojaVista.getRange(1, 14, resumenEncabezados.length, 3);
     rangoResumen.setValues(resumenEncabezados);
- 
+
     // Aplicar formatos
     hojaVista.getRange("N1:O1")
         .setBackground("#424242")
