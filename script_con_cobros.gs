@@ -40,7 +40,10 @@ function guardarDatosEnTabla2() {
     Browser.msgBox("Error: Para pacientes con estado 'Aceptado', la fecha de inicio es obligatoria.");
     return;
     }
-
+        if ((datos[14][2] === "Pendiente sin cita" || datos[14][2] ==="Pendiente con cita") && !datos[14][3]) {
+    Browser.msgBox("Error: La fecha de CONCRETAR / PROX LLAMADA es obligatoria.");
+    return;
+    }
     // Generar ID de transacción
     const transactionId = generateSequentialTransactionId();
 
@@ -55,6 +58,7 @@ function guardarDatosEnTabla2() {
         hojaPrevisiones = crearHojaPrevisiones(ss);
     }
     
+
     // Crear o obtener la hoja Vista Previsiones
     var hojaVista = ss.getSheetByName("Vista Previsiones");
     if (!hojaVista) {
@@ -99,11 +103,45 @@ function guardarDatosEnTabla2() {
     if (datos[14][2] === "Aceptado") {
         agregarAStagingPrevisiones(hojaPrevisiones, transactionId, datos[14][3], datos[0][1], datos[9][0], datos[14][1]);
     }
+    if (datos[14][2] === "Pendiente sin cita" || datos[14][2] ==="Pendiente con cita") {
+    // Crear o obtener la hoja PENDIENTES
+      var hojaPend = ss.getSheetByName("Presupuestos Pendientes");
+      if (!hojaPend) {
+      hojaPend = crearHojaPendientes(ss);
+      }
+      var fechaActual = new Date();
+
+      var filaEscribirPend = hojaPend.getLastRow() < 3 ? 4 : hojaPend.getLastRow() + 1;
+
+      var nuevaFilaPend = [
+        transactionId,     // ID Transacción
+        datos[14][2],      // ESTADO
+        datos[14][3],      // FECHA DE INICIO
+        datos[0][1],       // PACIENTE
+        datos[4][1],       // TELÉFONO
+        datos[9][0],       // DOCTOR/A
+        datos[9][1],       // ATP
+        datos[9][2],       // TIPOLOGÍA PV
+        datos[9][3],       // SUBTIPOLOGÍA
+        datos[14][0],      // IMPORTE PRESUPUESTADO
+        fechaIngresada,    // FECHA DE PRESUPUESTO
+        datos[14][1],      // IMPORTE ACEPTADO
+        '',
+        fechaActual,
+        datos[18][0]       // OBSERVACIONES
+    ];
+    
+      hojaPend.getRange(filaEscribirPend, 1, 1, nuevaFilaPend.length).setValues([nuevaFilaPend]);
+      actualizarFormatoFilaPendientes(hojaPend, filaEscribirPend, datos[14][2]);
+
+
+}
     actualizarTablaResumen(hojaMes);
     limpiarFormulario(hojaFormulario);
 
      //actualiza filtro de años en la hoja de Balance General
     actualizarFiltroDeAnios();
+    //hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
 
     Browser.msgBox("Datos guardados en '" + nombreMes + "' correctamente.");
 }
@@ -113,6 +151,95 @@ function limpiarFormulario(hoja) {
     var celdas = ["C3", "C5", "C7","B12", "C12", "D12", "E12", "F12", "G12", "B17", "C17", "D17", "E17", "F17", "B21"];
     celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
+///// ------------ HOJA PENDIENTES ----------
+
+// Crear hojaPend (PENDIENTES)
+function crearHojaPendientes(ss) {
+    var hojaPend = ss.insertSheet("Presupuestos Pendientes");
+    var encabezados = [
+        "ID TRANSACCIÓN", "ESTADO","FECHA: PRÓX CITA / LLAMADA", "PACIENTE", "TELÉFONO", "DOCTOR/A", 
+        "ATP", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", 
+        " PTO ","FECHA PTO", "IMPORTE ACEPTADO", "PROBLEMÁTICA PARA CIERRE","FECHA ÚLTIMA ACCIÓN","OBSERVACIONES"
+    ];
+
+    hojaPend.getRange(3, 1, 1, encabezados.length).setValues([encabezados])
+        .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center").setWrap(true);
+    hojaPend.getRange(3, 1, 1, encabezados.length).createFilter();
+    hojaPend.autoResizeColumns(1, hojaPend.getLastColumn());
+    hojaPend.setFrozenRows(3);
+
+    hojaPend.getRange("A1:E1")
+        .setValue(" PACIENTES PENDIENTES CON CITA Y SIN CITA ")
+        .setFontSize(20)
+        .setFontWeight("bold")
+        .setBackground("#98e0fa")
+        .setHorizontalAlignment("center")
+        .merge();
+
+    hojaPend.getRange("G1:I1").merge().setValue("Puede filtrar en los encabezados por ESTADO y ordenar por fecha de Concretar o de Próxima llamada")
+    .setFontSize(9)
+    .setWrap(true)
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle");
+
+    for (var i = 1; i <= 15; i++) {
+      hojaPend.setColumnWidth(i, 150);
+    }
+// Establecer el ancho de la columna
+hojaPend.setColumnWidth(13, 350);
+hojaPend.setColumnWidth(15, 350);
+// Aplicar wrap de texto a toda la columna 13
+hojaPend.getRange(1, 13, hojaPend.getMaxRows(), 1).setWrap(true);
+hojaPend.getRange(1, 15, hojaPend.getMaxRows(), 1).setWrap(true);
+
+// Estado 
+var validacionEstado = SpreadsheetApp.newDataValidation()
+    .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
+    .setAllowInvalid(false)
+    .build();
+var ultimaFila = Math.max(hojaPend.getLastRow(), 4); 
+hojaPend.getRange(4, 2, ultimaFila - 3).setDataValidation(validacionEstado);
+
+
+
+// Formato para montos
+hojaPend.getRange("K:K").setNumberFormat("€#,##0.00"); // Importe presupuestado
+hojaPend.getRange("J:J").setNumberFormat("€#,##0.00"); // Importe aceptado
+
+//Configurar validaciones para fechas y estado
+var validacionFecha = SpreadsheetApp.newDataValidation()
+    .requireDate()
+    .setAllowInvalid(false)
+    .build();
+
+// // Fechas relevantes
+hojaPend.getRange("C4:C").setDataValidation(validacionFecha); // Próxima cita/llamada
+hojaPend.getRange("K4:K").setDataValidation(validacionFecha); // Fecha última acción
+hojaPend.getRange("N4:N").setDataValidation(validacionFecha); // Fecha próxima llamada
+
+    return hojaPend;
+}
+
+///// actualizar estado en PENDIENTES
+
+function actualizarFormatoFilaPendientes(hoja, fila, estado) {
+    var rangoFila = hoja.getRange(fila, 1, 1, hoja.getLastColumn());
+    var colores = { 
+        "Aceptado": "#54c772", 
+        "Pendiente sin cita": "#FF9D23",
+        "Pendiente con cita": "#f7f73e", 
+        "No aceptado": "#fc4c3d" 
+    };
+    rangoFila.setBackground(colores[estado] || null);
+
+    // Agregar validación de estado
+    var reglaValidacion = SpreadsheetApp.newDataValidation()
+        .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
+        .setAllowInvalid(false)
+        .build();
+    hoja.getRange(fila, 2).setDataValidation(reglaValidacion);
+}
+
 
 /////-----------------PARRILLA PPAL -------------------------------
 
@@ -129,6 +256,12 @@ function crearHojaMes(ss, nombreMes) {
         .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
     hojaMes.getRange(10, 1, 1, encabezados.length).createFilter();
     hojaMes.autoResizeColumns(1, hojaMes.getLastColumn());
+
+    for (var i = 1; i <= 13; i++) {
+      hojaMes.setColumnWidth(i, 150);
+    }
+    hojaMes.setColumnWidth(14, 350);
+    hojaMes.getRange(1, 14, hojaMes.getMaxRows(), 1).setWrap(true);
     hojaMes.setFrozenRows(10);
     return hojaMes;
 }
@@ -152,6 +285,7 @@ function actualizarFormatoFila(hoja, fila, estado) {
 }
 
 /// tabla resumen de parrilla ppal
+
 function actualizarTablaResumen(hojaMes) {
    // Verificar si la tabla ya existe en la hoja
     var celdaCheck = hojaMes.getRange("C4").getValue();
@@ -356,7 +490,6 @@ function crearVistaPrevisiones(ss) {
 
 function configurarVistaPrevisiones(hojaVista, ss) {
 
-    hojaVista.getRange("A1:B1").setValue("Previsiones");
     hojaVista.getRange("A2").setValue("Año:");
     hojaVista.getRange("A3").setValue("Mes:");
         // Configurar título "Previsiones"
@@ -1222,7 +1355,115 @@ function onEdit(e) {
         actualizarFormatoFila(hoja, fila, estadoNuevo);
 
     }
+////// registrar cambios en un presupuesto y guardar FECHA ÚLTIMA ACCIÓN
+
+  if (hoja.getName() === "Presupuestos Pendientes") {
+      var fila = rango.getRow();
+          // Verificar que no sea una fila de encabezado
+      if (fila >= 4) {
+          // Actualizar FECHA ÚLTIMA ACCIÓN en columna N (14)
+          hoja.getRange(fila, 14).setValue(new Date());
+          SpreadsheetApp.getActiveSpreadsheet().toast("Últimos cambios registrados", "FECHA ÚLTIMA ACCIÓN");
+
+      }
+  }
+    // Detectar cambio de ESTADO en PRESUPUESTOS PENDIENTES
+if (hoja.getName() === "Presupuestos Pendientes" && rango.getColumn() === 2) { // Columna O (Estado)
+    var estadoNuevo = rango.getValue();
+    var fila = rango.getRow();
+    if (fila < 4) return; // Las primeras filas son encabezados
+
+    var estadoAnterior = e.oldValue;
+    actualizarFormatoFilaPendientes(hoja, fila, estadoNuevo);
+    
+    // Si el estado cambia a "Aceptado", mover a Staging Previsiones
+    if (estadoNuevo === "Aceptado") {
+        var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+       // 1. Obtener datos necesarios de la fila en Presupuestos Pendientes
+        var transactionId = hoja.getRange(fila, 1).getValue(); // ID en columna A
+        var paciente = hoja.getRange(fila, 4).getValue();      // Paciente en columna D
+        var doctor = hoja.getRange(fila, 6).getValue();        // Doctor en columna F
+        var fechaPto = hoja.getRange(fila, 11).getValue();     // Fecha del presupuesto en columna K
+        var importe = hoja.getRange(fila, 10).getValue();      // Importe presupuestado en columna J
+        var importeAceptado = hoja.getRange(fila, 12).getValue(); // Importe aceptado en columna L
+        
+        // Verificar si hay fecha de inicio, usar fecha actual si no existe
+        var fechaInicio = hoja.getRange(fila, 3).getValue();  // Fecha de próxima cita/llamada en columna C
+        if (!fechaInicio) {
+            fechaInicio = new Date();
+        }
+    }
+
+    var fecha = new Date(fechaPto);
+        var nombreMes = fecha.toLocaleDateString("es-ES", { year: "numeric", month: "long" });
+        nombreMes = nombreMes.charAt(0).toUpperCase() + nombreMes.slice(1);
+        
+        var hojaMes = ss.getSheetByName(nombreMes);
+        if (hojaMes) {
+            // 3. Buscar el registro correspondiente en la hoja mensual
+            var datosHojaMes = hojaMes.getDataRange().getValues();
+            var filaEncontrada = -1;
+            
+            for (var i = 10; i < datosHojaMes.length; i++) { // Comenzar desde la fila 11 (índice 10)
+                if (datosHojaMes[i][0] === transactionId) {
+                    filaEncontrada = i + 1; // +1 porque las filas en Sheets comienzan en 1
+                    break;
+                }
+            }
+            
+            // 4. Si se encuentra el registro, actualizar su estado
+            if (filaEncontrada > 0) {
+                // Actualizar estado a "Aceptado"
+                hojaMes.getRange(filaEncontrada, 10).setValue("Aceptado");
+                
+                // Actualizar fecha de inicio si es necesario
+                if (fechaInicio) {
+                    hojaMes.getRange(filaEncontrada, 13).setValue(fechaInicio);
+                }
+                
+                // Actualizar importe aceptado si es necesario
+                if (importeAceptado && importeAceptado > 0) {
+                    hojaMes.getRange(filaEncontrada, 12).setValue(importeAceptado);
+                } else if (importe && importe > 0) {
+                    // Si no hay importe aceptado, usar el importe presupuestado
+                    hojaMes.getRange(filaEncontrada, 12).setValue(importe);
+                }
+                
+                // Aplicar formato de acuerdo al nuevo estado
+                actualizarFormatoFila(hojaMes, filaEncontrada, "Aceptado");
+                
+                // Actualizar tabla resumen de la hoja mensual
+                actualizarTablaResumen(hojaMes);
+            }
+        }
+        
+        // 5. Agregar a Staging Previsiones (reutilizar código existente)
+        var hojaPrevisiones = ss.getSheetByName("Staging Previsiones") || crearHojaPrevisiones(ss);
+        
+        // Asegurar que existe Vista Previsiones
+        var hojaVista = ss.getSheetByName("Vista Previsiones");
+        if (!hojaVista) {
+            hojaVista = crearVistaPrevisiones(ss);
+        }
+        
+        // Usar el importe aceptado si está disponible, de lo contrario usar el importe presupuestado
+        var importeFinal = (importeAceptado && importeAceptado > 0) ? importeAceptado : importe;
+        
+        // Agregar a Staging Previsiones
+        agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio, paciente, doctor, importeFinal);
+        
+        // 6. (Opcional) Resaltar visualmente que el registro ha sido procesado
+        hoja.getRange(fila, 1, 1, hoja.getLastColumn()).setBackground("#54c772");
+        
+        // 7. Mostrar mensaje de confirmación al usuario
+        Browser.msgBox("Actualización completada", 
+                      "El registro ha sido actualizado a 'Aceptado' en la hoja mensual y añadido a Previsiones.", 
+                      Browser.Buttons.OK);
+    }
 }
+
+
 
 
 /////// ---------------------- COBROS ------------------
