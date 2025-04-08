@@ -2081,18 +2081,19 @@ function balanceGeneral(annio) {
   
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
-  hojaBalance.getRange("B5:H16").clearContent();
+  hojaBalance.getRange("B5:J16").clearContent();
 
   for (var i = 0; i < listaHojas.length; i++) {
     var hoja = listaHojas[i];
     try {
       var nombreHoja = hoja.getName();
       var mes = nombreHoja.split(" de ")[0];
-      //Logger.log('Procesando tabla principal: ' + nombreHoja + ' (mes: ' + mes + ')');
 
       var suma = 0;
       var suma_pre = 0;
       var pac_acep = 0;
+     var suma_pend = 0;
+      var pac_pend = 0;
 
       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
       var startRow = 11; // Primera fila de interés
@@ -2118,11 +2119,21 @@ function balanceGeneral(annio) {
 
       var abonoMes = sumarAbonosPorMes(mes);
 
-      for (var j = 0; j < aceptados.length; j++) {
+          for (var j = 0; j < aceptados.length; j++) {
         if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
           pac_acep += 1;
         }
+        // Añadir conteo de pacientes pendientes
+        if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
+          pac_pend += 1;
+          
+          // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
+          if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+            suma_pend += presupuestos[j][0];
+          }
+        }
       }
+      
 
       for (var j = 0; j < presupuestos.length; j++) {
         if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
@@ -2146,12 +2157,14 @@ function balanceGeneral(annio) {
         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
+        hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
+        hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
       }
     } catch (error) {
       Logger.log(`Error en ${nombreHoja} (tabla principal): ${error}`);
     }
   }
-    // Agregar la nueva funcionalidad de distribución de presupuestos
+    // Agregar funcionalidad de distribución de presupuestos
   obtenerDistribucionPresupuestos(listaHojas, false);
 }
 
@@ -2178,7 +2191,7 @@ function balanceGeneralComparacion(annio) {
   
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
-  hojaBalance.getRange("B29:H40").clearContent();
+  hojaBalance.getRange("B29:J40").clearContent();
 
   for (var i = 0; i < listaHojas.length; i++) {
     var hoja = listaHojas[i];
@@ -2189,6 +2202,8 @@ function balanceGeneralComparacion(annio) {
       var suma = 0;
       var suma_pre = 0;
       var pac_acep = 0;
+      var suma_pend = 0; // Nueva variable para la suma de presupuestos pendientes
+      var pac_pend = 0;  // Nueva variable para el conteo de pacientes pendientes
 
       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
       var startRow = 11; // Primera fila de interés
@@ -2218,6 +2233,15 @@ function balanceGeneralComparacion(annio) {
         if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
           pac_acep += 1;
         }
+        // Añadir conteo de pacientes pendientes
+        if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
+          pac_pend += 1;
+          
+          // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
+          if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+            suma_pend += presupuestos[j][0];
+          }
+        }
       }
 
       for (var j = 0; j < presupuestos.length; j++) {
@@ -2242,6 +2266,8 @@ function balanceGeneralComparacion(annio) {
         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
+        hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
+        hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
       }
     } catch (error) {
     }
@@ -2328,7 +2354,7 @@ function guardarDatosYActualizarTablas() {
 }
 
 
-// Función para obtener la distribución de presupuestos por rangos de montos
+// Función para obtener la distribución de presupuestos por rangos de montos KPIS
 
 function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
   // Mapeo de meses a filas (tabla principal o comparación)
@@ -2346,21 +2372,21 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
   hojaBalance.setFrozenColumns(1);
   // Limpiar la tabla de distribución correspondiente
-  if (esComparacion) {
-    hojaBalance.getRange("K29:O40").clearContent();
-    hojaBalance.getRange("R29:V40").clearContent();
+ if (esComparacion) {
+    hojaBalance.getRange("M29:Q40").clearContent(); 
+    hojaBalance.getRange("T29:X40").clearContent();
   } else {
-    hojaBalance.getRange("K5:O16").clearContent();
-    hojaBalance.getRange("R5:V16").clearContent();
+    hojaBalance.getRange("M5:Q16").clearContent(); 
+    hojaBalance.getRange("T5:X16").clearContent(); 
   }
   
   // Definir los rangos de montos
   const rangos = [
-    { min: 0, max: 1000 },      // Columna K (0-1000)
-    { min: 1000, max: 3000 },   // Columna L (1000-3000)
-    { min: 3000, max: 6000 },   // Columna M (3000-6000)
-    { min: 6000, max: 10000 },  // Columna N (6000-10000)
-    { min: 10000, max: Infinity } // Columna O (>10000)
+    { min: 0, max: 1000 },      // Columna M (0-1000)
+    { min: 1000, max: 3000 },   // Columna N (1000-3000)
+    { min: 3000, max: 6000 },   // Columna O (3000-6000)
+    { min: 6000, max: 10000 },  // Columna P (6000-10000)
+    { min: 10000, max: Infinity } // Columna Q (>10000)
   ];
   
   // Procesar cada hoja mensual
@@ -2421,11 +2447,11 @@ function obtenerDistribucionPresupuestos(hojas,  esComparacion = false) {
       var filaDestino = mesAFila[mes];
       if (filaDestino) {
         for (let i = 0; i < contadores.length; i++) {
-          hojaBalance.getRange(filaDestino, 11 + i).setValue(contadores[i]);
+          hojaBalance.getRange(filaDestino, 13 + i).setValue(contadores[i]);
         }
       }
       for (let i = 0; i < count_tipol.length; i++) {
-        hojaBalance.getRange(filaDestino, 18 + i).setValue(count_tipol[i]);
+        hojaBalance.getRange(filaDestino, 20 + i).setValue(count_tipol[i]);
       }
       
     } catch (error) {
