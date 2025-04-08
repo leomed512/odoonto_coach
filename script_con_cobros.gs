@@ -151,6 +151,11 @@ function limpiarFormulario(hoja) {
     var celdas = ["C3", "C5", "C7","B12", "C12", "D12", "E12", "F12", "G12", "B17", "C17", "D17", "E17", "F17", "B21"];
     celdas.forEach(celda => hoja.getRange(celda).setValue(""));
 }
+function borrarFormularioRegistro() {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var hojaFormulario = ss.getSheetByName("Registro de presupuesto");
+      limpiarFormulario(hojaFormulario);
+}
 ///// ------------ HOJA PENDIENTES ----------
 
 // Crear hojaPend (PENDIENTES)
