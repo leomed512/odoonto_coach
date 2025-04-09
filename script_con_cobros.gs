@@ -166,7 +166,9 @@ function crearHojaPendientes(ss) {
         "ATP", "TIPOLOGÍA PV", "SUBTIPOLOGÍA", 
         " PTO ","FECHA PTO", "IMPORTE ACEPTADO", "PROBLEMÁTICA PARA CIERRE","FECHA ÚLTIMA ACCIÓN","OBSERVACIONES"
     ];
-
+    hojaPend.getRange(2,14).setValue("AUTOMÁTICA")
+    .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
+    
     hojaPend.getRange(3, 1, 1, encabezados.length).setValues([encabezados])
         .setFontWeight("bold").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center").setWrap(true);
     hojaPend.getRange(3, 1, 1, encabezados.length).createFilter();
@@ -177,15 +179,25 @@ function crearHojaPendientes(ss) {
         .setValue(" PACIENTES PENDIENTES CON CITA Y SIN CITA ")
         .setFontSize(20)
         .setFontWeight("bold")
-        .setBackground("#98e0fa")
         .setHorizontalAlignment("center")
         .merge();
 
+hojaPend.getRange("A1:E1").setBorder(
+  true, // top (arriba)
+  true, // left (izquierda)
+  true, // bottom (abajo)
+  true, // right (derecha)
+  false, // vertical (bordes verticales internos)
+  false, // horizontal (bordes horizontales internos)
+  "black", // color
+  SpreadsheetApp.BorderStyle.SOLID // estilo
+);
     hojaPend.getRange("G1:I1").merge().setValue("Puede filtrar en los encabezados por ESTADO y ordenar por fecha de Concretar o de Próxima llamada")
     .setFontSize(9)
     .setWrap(true)
     .setFontWeight("bold")
-    .setVerticalAlignment("middle");
+    .setVerticalAlignment("middle")
+     .setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
 
     for (var i = 1; i <= 15; i++) {
       hojaPend.setColumnWidth(i, 150);
@@ -2057,6 +2069,9 @@ function actualizarFiltroDeAnios() {
 
   // Aplicar la validación a la celda A2
   rango.setDataValidation(reglaValidacion);
+
+    hoja.getRange("A26").setDataValidation(reglaValidacion);
+
 }
 
 
