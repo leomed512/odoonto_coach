@@ -294,11 +294,19 @@ function actualizarFormatoFila(hoja, fila, estado) {
     };
     rangoFila.setBackground(colores[estado] || null);
 
-    var reglaValidacion = SpreadsheetApp.newDataValidation()
-        .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
-        .setAllowInvalid(false)
-        .build();
-    hoja.getRange(fila, 10).setDataValidation(reglaValidacion);
+    var nombreHoja = hoja.getName();
+    if (nombreHoja !== "BALANCE GENERAL") {
+        var reglaValidacion = SpreadsheetApp.newDataValidation()
+            .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
+            .setAllowInvalid(false)
+            .build();
+        hoja.getRange(fila, 10).setDataValidation(reglaValidacion);
+    }
+    // var reglaValidacion = SpreadsheetApp.newDataValidation()
+    //     .requireValueInList(["Aceptado", "Pendiente sin cita", "Pendiente con cita", "No aceptado"], true)
+    //     .setAllowInvalid(false)
+    //     .build();
+    // hoja.getRange(fila, 10).setDataValidation(reglaValidacion);
 }
 
 /// tabla resumen de parrilla ppal
