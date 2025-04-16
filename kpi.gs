@@ -326,14 +326,17 @@ function saveDateRange(startDate, endDate) {
   var sum_rep_anio_act = 0;
 
   var setDrs = new Set();
+  var setATPs = new Set();
 
   valores.forEach(function(fila) {
     var valor = fila[10]; // Accedemos al valor de la celda en la columna K
     var estado = fila[9];
     var tipologia = fila[6];
     var dr = fila[4];
+    var atp = fila[5]; // Columna F - ATP
 
     setDrs.add(dr);
+    setATPs.add(atp);
 
     if (valor >= 0 && valor <= 1000) {
       count_0_1000++;
@@ -392,6 +395,7 @@ function saveDateRange(startDate, endDate) {
     }
   });
 
+  // PRIMERA TABLA: Por Doctores (estadísticas generales)
   setDrs.forEach(function(drs) {
     var vta1 = 0;
     var amp = 0;
@@ -424,6 +428,7 @@ function saveDateRange(startDate, endDate) {
           amp++;
         } else if (row[6] === "Criba") {
           criba++;
+          // Contamos los tipos de criba para doctores también
           if (row[7] === "Implante") {
             implante++;
           } else if (row[7] === "Ortodoncia") {
@@ -440,7 +445,7 @@ function saveDateRange(startDate, endDate) {
             formaPrepo++;
           } else if (row[7] === "Conservadora") {
             resenia++;
-            }else if (row[7] === "Irrigadores") {
+          } else if (row[7] === "Irrigadores") {
             irrigadores++;
           }
         } else if (row[6] === "OC") {
@@ -450,24 +455,85 @@ function saveDateRange(startDate, endDate) {
             vinoEl++;
           }
         }
-      if (row[9] === "Aceptado") {
-        aceptado++;
-      } else if (row[9] === "Pendiente con cita") {
-        pendienteCita++;
-      } else if (row[9] === "Pendiente sin cita") {
-        pendienteSinCita++;
-      } else if (row[9] === "No aceptado") {
-        noAceptado++;
+        if (row[9] === "Aceptado") {
+          aceptado++;
+        } else if (row[9] === "Pendiente con cita") {
+          pendienteCita++;
+        } else if (row[9] === "Pendiente sin cita") {
+          pendienteSinCita++;
+        } else if (row[9] === "No aceptado") {
+          noAceptado++;
+        }
       }
-      }
-      
     });
+    
     totalDrs = vta1 + amp + criba + llamado + vinoEl;
     var datos = [drs, vta1, amp, criba, llamado, vinoEl, totalDrs, aceptado, pendienteCita, pendienteSinCita, noAceptado];
-    var datos2 = [drs, irrigadores, ortodoncia, protesisRemovible, implante, estetica, protesisFija, tarjetaSalud, resenia, formaPrepo]
+    var datos2 = [drs, irrigadores, ortodoncia, protesisRemovible, implante, estetica, protesisFija, tarjetaSalud, resenia, formaPrepo];
     sheet.getRange(filaDestino, 1, 1, datos.length).setValues([datos]);
     var columnaInicioDatos2 = datos.length + 3;
     sheet.getRange(filaDestino, columnaInicioDatos2, 1, datos2.length).setValues([datos2]);
+  });
+  
+  // SEGUNDA TABLA: Por ATP (tratamientos específicos)
+  // Primero, limpiar el rango para datos de ATP
+  var ultimaFila = sheet.getLastRow();
+  if (ultimaFila >= 49) {
+    sheet.getRange(49, 14, ultimaFila - 48, 10).clearContent();
+  }
+  var filaATP = 49; // Empezamos en la misma fila que la tabla de doctores
+var atpsConCriba = new Set();
+
+// Primero identificamos los ATPs que tienen al menos una criba
+valores.forEach(function(row) {
+  if (row[6] === "Criba") { // Si la tipología es Criba
+    atpsConCriba.add(row[5]); // Añadir el ATP a la lista
+  }
+});
+
+// Ahora solo procesamos los ATPs que tienen al menos una criba
+atpsConCriba.forEach(function(atp) {
+  var irrigadores = 0;
+  var implante = 0;
+  var ortodoncia = 0;
+  var protesisRemovible = 0;
+  var protesisFija = 0;
+  var estetica = 0;
+  var tarjetaSalud = 0;
+  var resenia = 0;
+  var formaPrepo = 0;
+
+  valores.forEach(function(row) {
+    if (atp === row[5] && row[6] === "Criba") { // Solo contar si es el ATP correcto Y es una criba
+      if (row[7] === "Implante") {
+        implante++;
+      } else if (row[7] === "Ortodoncia") {
+        ortodoncia++;
+      } else if (row[7] === "Prótesis removible") {
+        protesisRemovible++;
+      } else if (row[7] === "Prótesis fija") {
+        protesisFija++;
+      } else if (row[7] === "Estética") {
+        estetica++;
+      } else if (row[7] === "Tarjeta salud") {
+        tarjetaSalud++;
+      } else if (row[7] === "Forma de pago") {
+        formaPrepo++;
+      } else if (row[7] === "Conservadora") {
+        resenia++;
+      } else if (row[7] === "Irrigadores") {
+        irrigadores++;
+      }
+    }
+  });
+  
+
+    var datosATP2 = [atp, irrigadores, ortodoncia, protesisRemovible, implante, estetica, protesisFija, tarjetaSalud, resenia, formaPrepo];
+    
+    // Escribir los datos en la misma fila pero en la columna 14 (N) en adelante
+    sheet.getRange(filaATP, 14, 1, datosATP2.length).setValues([datosATP2]);
+    
+    filaATP++; // Incrementar para la siguiente fila
   });
   
   sheet.getRange("B5").setValue(count_0_1000);
@@ -505,4 +571,3 @@ function saveDateRange(startDate, endDate) {
   sheet.getRange("B36").setValue(count_rep_anio_act);
   sheet.getRange("C36").setValue(sum_rep_anio_act);
 }
-
