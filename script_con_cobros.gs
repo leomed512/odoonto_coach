@@ -233,6 +233,8 @@ var validacionFecha = SpreadsheetApp.newDataValidation()
 hojaPend.getRange("C4:C").setDataValidation(validacionFecha); // Próxima cita/llamada
 hojaPend.getRange("K4:K").setDataValidation(validacionFecha); // Fecha última acción
 hojaPend.getRange("N4:N").setDataValidation(validacionFecha); // Fecha próxima llamada
+hojaPend.getRange("N4:N").setNumberFormat("dd/MM/yyyy HH:mm:ss");
+
 
     return hojaPend;
 }
@@ -388,7 +390,8 @@ function actualizarTablaResumen(hojaMes) {
 
     rangoPacientesCobrados.setFormula(`=COUNTIFS('Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
     rangoTotalCobrado.setFormula(`=SUMIFS('Staging Cobros'!F:F,'Staging Cobros'!B:B,">="&${fechaInicio_cobros},'Staging Cobros'!B:B,"<="&${fechaFin_cobros})`);
-    rangoTotalPendiente.setFormula(`=C4-C5`);
+    //rangoTotalPendiente.setFormula(`=C4-C5`);
+    rangoTotalPendiente.setFormula(`=SUMIFS(K${filaInicio}:K${ultimaFila}, J${filaInicio}:J${ultimaFila}, "Pendiente con cita") + SUMIFS(K${filaInicio}:K${ultimaFila}, J${filaInicio}:J${ultimaFila}, "Pendiente sin cita")`);
 
 
     [rangoTotalPresupuestado, rangoTotalAceptado, rangoTotalCobrado, rangoPtoMedio, rangoTotalPendiente].forEach(celda => {
@@ -771,6 +774,41 @@ function configurarTablaResumen(hojaVista) {
 
 }
 
+// function configurarTablaResumen(hojaVista) {
+//     var resumenEncabezados = [
+//         ["RESUMEN", "", ""],  
+//         ["Total Importe", "=IF(COUNTA(A6:A)=0, 0, SUM(UNIQUE(FILTER(E6:INDEX(E:E, MATCH(2, 1/(A6:A<>\"\"), 1) + 5), A6:INDEX(A:A, MATCH(2, 1/(A6:A<>\"\"), 1) + 5)<>\"\"))))", ""],
+//         ["Previsión mes actual", "=IFERROR(MAX(SUM(F6:INDEX(F:F, MAX(FILTER(ROW(F6:F), F6:F<>\"\")))) - SUM(G6:INDEX(G:G, MAX(FILTER(ROW(G6:G), G6:G<>\"\")))), 0), 0)", ""],
+//         ["Previsión abonada", "=SUM(G6:G)", ""] // Referencia a columna G
+//     ];
+
+//     // Cambiar el rango de escritura de (1, 14) a (1, 4)
+//     var rangoResumen = hojaVista.getRange(1, 4, resumenEncabezados.length, 3);
+//     rangoResumen.setValues(resumenEncabezados);
+
+//     // Actualizar referencias de celdas para el formato
+//     // De N1:O1 a D1:E1
+//     hojaVista.getRange("D1:E1")
+//         .setBackground("#424242")
+//         .setFontColor("white")
+//         .setFontWeight("bold")
+//         .merge();
+    
+//     // De O2:O4 a E2:E4
+//     hojaVista.getRange("E2:E4").setNumberFormat("€#,##0.00");
+    
+//     // Estilos alternados
+//     hojaVista.getRange("D2:E2").setBackground("#f6f6f6");
+//     hojaVista.getRange("D3:E3").setBackground("#e2e2e2");
+//     hojaVista.getRange("D4:E4").setBackground("#f6f6f6");
+    
+//     // Bordes
+//     hojaVista.getRange("D1:E4").setBorder(true, true, true, true, true, true); 
+    
+//     // Cambiar autoResize de columnas 14,3 a 4,3
+//     hojaVista.autoResizeColumns(4, 3);
+// }
+
 ///// Actualizar Vista de Previsiones luego de filtrar por fecha
 
 function actualizarVistaPrevisiones() {
@@ -1007,7 +1045,7 @@ function manejarPrevision() {
         "Confirmar Previsión",
         "¿Qué desea hacer?\n\n" +
         "• Seleccione 'Yes' para ACTUALIZAR una previsión existente\n" +
-        "• Seleccione 'No' para CREAR una NUEVA previsión de un presupuesto existente",
+        "• Seleccione 'No' para CONFIRMAR una NUEVA previsión",
         ui.ButtonSet.YES_NO_CANCEL
     );
     if (accion === ui.Button.CANCEL) {
@@ -1387,7 +1425,11 @@ function onEdit(e) {
           // Verificar que no sea una fila de encabezado
       if (fila >= 4) {
           // Actualizar FECHA ÚLTIMA ACCIÓN en columna N (14)
-          hoja.getRange(fila, 14).setValue(new Date());
+           var fechaHoraActual = new Date();
+        var celdaFecha = hoja.getRange(fila, 14);
+        celdaFecha.setValue(fechaHoraActual);
+        // Aplicar formato que muestre fecha y hora
+        celdaFecha.setNumberFormat("dd/MM/yyyy HH:mm:ss");
           SpreadsheetApp.getActiveSpreadsheet().toast("Últimos cambios registrados", "FECHA ÚLTIMA ACCIÓN");
 
       }
