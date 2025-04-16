@@ -2594,6 +2594,113 @@ function actualizarFiltroDeAnios() {
 
 ////// función de configurar BALANCE GENERAL 
 
+// function balanceGeneral(annio) {
+//   var listaHojas = obtenerHojasPorMesYAnio(annio);
+//   var mesAFila = {
+//     "Enero": 5,
+//     "Febrero": 6,
+//     "Marzo": 7,
+//     "Abril": 8,
+//     "Mayo": 9,
+//     "Junio": 10,
+//     "Julio": 11,
+//     "Agosto": 12,
+//     "Septiembre": 13,
+//     "Octubre": 14,
+//     "Noviembre": 15,
+//     "Diciembre": 16
+//   };
+  
+//   var ss = SpreadsheetApp.getActiveSpreadsheet();
+//   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
+//   hojaBalance.getRange("B5:J16").clearContent();
+
+//   for (var i = 0; i < listaHojas.length; i++) {
+//     var hoja = listaHojas[i];
+//     try {
+//       var nombreHoja = hoja.getName();
+//       var mes = nombreHoja.split(" de ")[0];
+
+//       var suma = 0;
+//       var suma_pre = 0;
+//       var pac_acep = 0;
+//      var suma_pend = 0;
+//       var pac_pend = 0;
+
+//       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
+//       var startRow = 11; // Primera fila de interés
+//       if (lastRow >= startRow) {
+//         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
+//         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
+//         var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
+//         var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
+
+//         var n_pacientes = 0;
+//         for (var j = 0; j < pacientes.length; j++) {
+//           if (pacientes[j][0]) n_pacientes++;
+//         }
+        
+//         var n_presupuesto = 0;
+//         for (var j = 0; j < presupuestos.length; j++) {
+//           if (presupuestos[j][0]) n_presupuesto++;
+//         }
+//       } else {
+//         var n_pacientes = 0;
+//         var n_presupuesto = 0;
+//       }
+
+//       var abonoMes = sumarAbonosPorMes(mes);
+
+//           for (var j = 0; j < aceptados.length; j++) {
+//         if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
+//           pac_acep += 1;
+//         }
+//         // Añadir conteo de pacientes pendientes
+//         if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
+//           pac_pend += 1;
+          
+//           // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
+//           if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+//             suma_pend += presupuestos[j][0];
+//           }
+//         }
+//       }
+      
+
+//       for (var j = 0; j < presupuestos.length; j++) {
+//         if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+//           suma_pre += presupuestos[j][0];
+//         }
+//       }
+
+//       for (var j = 0; j < valores.length; j++) {
+//         if (valores[j][0] && typeof valores[j][0] === 'number') {
+//           suma += valores[j][0];
+//         }
+//       }
+      
+//       var filaDestino = mesAFila[mes];
+      
+//       if (filaDestino) {
+//         hojaBalance.getRange(filaDestino, 7).setValue(suma);
+//         hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
+//         hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
+//         hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
+//         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
+//         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
+//         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
+//         hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
+//         hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
+//       }
+//     } catch (error) {
+//       Logger.log(`Error en ${nombreHoja} (tabla principal): ${error}`);
+//     }
+//   }
+//     // Agregar funcionalidad de distribución de presupuestos
+//   obtenerDistribucionPresupuestos(listaHojas, false);
+// }
+
+// Función corregida para balanceGeneral
 function balanceGeneral(annio) {
   var listaHojas = obtenerHojasPorMesYAnio(annio);
   var mesAFila = {
@@ -2621,28 +2728,58 @@ function balanceGeneral(annio) {
       var nombreHoja = hoja.getName();
       var mes = nombreHoja.split(" de ")[0];
 
-      var suma = 0;
-      var suma_pre = 0;
-      var pac_acep = 0;
-     var suma_pend = 0;
-      var pac_pend = 0;
+      var suma = 0;         // Variable para importe aceptado (SOLO estados "Aceptado")
+      var suma_pre = 0;     // Variable para importes presupuestados
+      var pac_acep = 0;     // Contador de pacientes aceptados
+      var suma_pend = 0;    // Variable para suma de presupuestos pendientes
+      var pac_pend = 0;     // Contador de pacientes pendientes
 
-      var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
+      var lastRow = hoja.getLastRow();
       var startRow = 11; // Primera fila de interés
+      
       if (lastRow >= startRow) {
-        var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
-        var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
-        var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
-        var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
-
-        var n_pacientes = 0;
-        for (var j = 0; j < pacientes.length; j++) {
-          if (pacientes[j][0]) n_pacientes++;
-        }
+        // Obtener todas las columnas relevantes de una vez para mejorar rendimiento
+        var rangoDatos = hoja.getRange(startRow, 1, lastRow - startRow + 1, 14);
+        var datosFila = rangoDatos.getValues();
         
+        var n_pacientes = 0;
         var n_presupuesto = 0;
-        for (var j = 0; j < presupuestos.length; j++) {
-          if (presupuestos[j][0]) n_presupuesto++;
+        
+        // Procesar cada fila
+        for (var j = 0; j < datosFila.length; j++) {
+          // Verificar si hay ID de paciente (columna A, índice 0)
+          if (datosFila[j][0]) n_pacientes++;
+          
+          // Verificar si hay importe presupuestado (columna K, índice 10)
+          if (datosFila[j][10]) n_presupuesto++;
+          
+          // Verificar estado (columna J, índice 9)
+          var estado = datosFila[j][9];
+          
+          // Verificar importes
+          var importePresupuestado = datosFila[j][10]; // Columna K (índice 10)
+          var importeAceptado = datosFila[j][11];     // Columna L (índice 11)
+          
+          // Sumar presupuestos
+          if (importePresupuestado && typeof importePresupuestado === 'number') {
+            suma_pre += importePresupuestado;
+          }
+          
+          // Procesar según el estado
+          if (estado === 'Aceptado') {
+            pac_acep += 1;
+            // Sumar importe aceptado solo si el estado es "Aceptado"
+            if (importeAceptado && typeof importeAceptado === 'number') {
+              suma += importeAceptado;
+            }
+          } 
+          else if (estado === 'Pendiente con cita' || estado === 'Pendiente sin cita') {
+            pac_pend += 1;
+            // Sumar a pendientes
+            if (importePresupuestado && typeof importePresupuestado === 'number') {
+              suma_pend += importePresupuestado;
+            }
+          }
         }
       } else {
         var n_pacientes = 0;
@@ -2650,60 +2787,136 @@ function balanceGeneral(annio) {
       }
 
       var abonoMes = sumarAbonosPorMes(mes);
-
-          for (var j = 0; j < aceptados.length; j++) {
-        if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
-          pac_acep += 1;
-        }
-        // Añadir conteo de pacientes pendientes
-        if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
-          pac_pend += 1;
-          
-          // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
-          if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-            suma_pend += presupuestos[j][0];
-          }
-        }
-      }
-      
-
-      for (var j = 0; j < presupuestos.length; j++) {
-        if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-          suma_pre += presupuestos[j][0];
-        }
-      }
-
-      for (var j = 0; j < valores.length; j++) {
-        if (valores[j][0] && typeof valores[j][0] === 'number') {
-          suma += valores[j][0];
-        }
-      }
       
       var filaDestino = mesAFila[mes];
       
       if (filaDestino) {
-        hojaBalance.getRange(filaDestino, 7).setValue(suma);
-        hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
-        hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
-        hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
-        hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
-        hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
-        hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-        hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
-        hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
+        hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);        // Columna B: COBROS
+        hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);     // Columna C: Nº PACIENTES
+        hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);        // Columna D: PTOs
+        hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);   // Columna E: Nº PTOs
+        hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0); // Columna F: PTO MEDIO
+        hojaBalance.getRange(filaDestino, 7).setValue(suma);           // Columna G: PTOs ACEPTADO (CORREGIDO)
+        hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);        // Columna H: Nº PAC ACEPT
+        hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);       // Columna I: PTOs PENDIENTES
+        hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);       // Columna J: Nº PAC PEND
       }
     } catch (error) {
       Logger.log(`Error en ${nombreHoja} (tabla principal): ${error}`);
     }
   }
-    // Agregar funcionalidad de distribución de presupuestos
+  // Agregar funcionalidad de distribución de presupuestos
   obtenerDistribucionPresupuestos(listaHojas, false);
 }
+
 
 //////////////////////////// BALANCE GENERAL COMPARACIÓN
 
 // Función para el balance general de la tabla de comparación
 
+// function balanceGeneralComparacion(annio) {
+//   var listaHojas = obtenerHojasPorMesYAnio(annio);
+//   var mesAFila = {
+//     "Enero": 29,
+//     "Febrero": 30,
+//     "Marzo": 31,
+//     "Abril": 32,
+//     "Mayo": 33,
+//     "Junio": 34,
+//     "Julio": 35,
+//     "Agosto": 36,
+//     "Septiembre": 37,
+//     "Octubre": 38,
+//     "Noviembre": 39,
+//     "Diciembre": 40
+//   };
+  
+//   var ss = SpreadsheetApp.getActiveSpreadsheet();
+//   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
+//   hojaBalance.getRange("B29:J40").clearContent();
+
+//   for (var i = 0; i < listaHojas.length; i++) {
+//     var hoja = listaHojas[i];
+//     try {
+//       var nombreHoja = hoja.getName();
+//       var mes = nombreHoja.split(" de ")[0];
+
+//       var suma = 0;
+//       var suma_pre = 0;
+//       var pac_acep = 0;
+//       var suma_pend = 0; // Nueva variable para la suma de presupuestos pendientes
+//       var pac_pend = 0;  // Nueva variable para el conteo de pacientes pendientes
+
+//       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
+//       var startRow = 11; // Primera fila de interés
+//       if (lastRow >= startRow) {
+//         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
+//         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
+//         var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
+//         var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
+
+//         var n_pacientes = 0;
+//         for (var j = 0; j < pacientes.length; j++) {
+//           if (pacientes[j][0]) n_pacientes++;
+//         }
+        
+//         var n_presupuesto = 0;
+//         for (var j = 0; j < presupuestos.length; j++) {
+//           if (presupuestos[j][0]) n_presupuesto++;
+//         }
+//       } else {
+//         var n_pacientes = 0;
+//         var n_presupuesto = 0;
+//       }
+
+//       var abonoMes = sumarAbonosPorMes(mes);
+
+//       for (var j = 0; j < aceptados.length; j++) {
+//         if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
+//           pac_acep += 1;
+//         }
+//         // Añadir conteo de pacientes pendientes
+//         if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
+//           pac_pend += 1;
+          
+//           // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
+//           if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+//             suma_pend += presupuestos[j][0];
+//           }
+//         }
+//       }
+
+//       for (var j = 0; j < presupuestos.length; j++) {
+//         if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
+//           suma_pre += presupuestos[j][0];
+//         }
+//       }
+
+//       for (var j = 0; j < valores.length; j++) {
+//         if (valores[j][0] && typeof valores[j][0] === 'number') {
+//           suma += valores[j][0];
+//         }
+//       }
+      
+//       var filaDestino = mesAFila[mes];
+      
+//       if (filaDestino) {
+//         hojaBalance.getRange(filaDestino, 7).setValue(suma);
+//         hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
+//         hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
+//         hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
+//         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
+//         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
+//         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
+//         hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
+//         hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
+//       }
+//     } catch (error) {
+//     }
+//   }
+//       // Agregar la nueva funcionalidad de distribución de presupuestos
+//   obtenerDistribucionPresupuestos(listaHojas, true);
+// }
 function balanceGeneralComparacion(annio) {
   var listaHojas = obtenerHojasPorMesYAnio(annio);
   var mesAFila = {
@@ -2731,28 +2944,58 @@ function balanceGeneralComparacion(annio) {
       var nombreHoja = hoja.getName();
       var mes = nombreHoja.split(" de ")[0];
 
-      var suma = 0;
-      var suma_pre = 0;
-      var pac_acep = 0;
-      var suma_pend = 0; // Nueva variable para la suma de presupuestos pendientes
-      var pac_pend = 0;  // Nueva variable para el conteo de pacientes pendientes
+      var suma = 0;         // Variable para importe aceptado (SOLO estados "Aceptado")
+      var suma_pre = 0;     // Variable para importes presupuestados
+      var pac_acep = 0;     // Contador de pacientes aceptados
+      var suma_pend = 0;    // Variable para suma de presupuestos pendientes
+      var pac_pend = 0;     // Contador de pacientes pendientes
 
-      var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
+      var lastRow = hoja.getLastRow();
       var startRow = 11; // Primera fila de interés
+      
       if (lastRow >= startRow) {
-        var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
-        var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
-        var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
-        var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
-
-        var n_pacientes = 0;
-        for (var j = 0; j < pacientes.length; j++) {
-          if (pacientes[j][0]) n_pacientes++;
-        }
+        // Obtener todas las columnas relevantes de una vez para mejorar rendimiento
+        var rangoDatos = hoja.getRange(startRow, 1, lastRow - startRow + 1, 14);
+        var datosFila = rangoDatos.getValues();
         
+        var n_pacientes = 0;
         var n_presupuesto = 0;
-        for (var j = 0; j < presupuestos.length; j++) {
-          if (presupuestos[j][0]) n_presupuesto++;
+        
+        // Procesar cada fila
+        for (var j = 0; j < datosFila.length; j++) {
+          // Verificar si hay ID de paciente (columna A, índice 0)
+          if (datosFila[j][0]) n_pacientes++;
+          
+          // Verificar si hay importe presupuestado (columna K, índice 10)
+          if (datosFila[j][10]) n_presupuesto++;
+          
+          // Verificar estado (columna J, índice 9)
+          var estado = datosFila[j][9];
+          
+          // Verificar importes
+          var importePresupuestado = datosFila[j][10]; // Columna K (índice 10)
+          var importeAceptado = datosFila[j][11];     // Columna L (índice 11)
+          
+          // Sumar presupuestos
+          if (importePresupuestado && typeof importePresupuestado === 'number') {
+            suma_pre += importePresupuestado;
+          }
+          
+          // Procesar según el estado
+          if (estado === 'Aceptado') {
+            pac_acep += 1;
+            // Sumar importe aceptado solo si el estado es "Aceptado"
+            if (importeAceptado && typeof importeAceptado === 'number') {
+              suma += importeAceptado;
+            }
+          } 
+          else if (estado === 'Pendiente con cita' || estado === 'Pendiente sin cita') {
+            pac_pend += 1;
+            // Sumar a pendientes
+            if (importePresupuestado && typeof importePresupuestado === 'number') {
+              suma_pend += importePresupuestado;
+            }
+          }
         }
       } else {
         var n_pacientes = 0;
@@ -2760,51 +3003,25 @@ function balanceGeneralComparacion(annio) {
       }
 
       var abonoMes = sumarAbonosPorMes(mes);
-
-      for (var j = 0; j < aceptados.length; j++) {
-        if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
-          pac_acep += 1;
-        }
-        // Añadir conteo de pacientes pendientes
-        if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
-          pac_pend += 1;
-          
-          // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
-          if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-            suma_pend += presupuestos[j][0];
-          }
-        }
-      }
-
-      for (var j = 0; j < presupuestos.length; j++) {
-        if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-          suma_pre += presupuestos[j][0];
-        }
-      }
-
-      for (var j = 0; j < valores.length; j++) {
-        if (valores[j][0] && typeof valores[j][0] === 'number') {
-          suma += valores[j][0];
-        }
-      }
       
       var filaDestino = mesAFila[mes];
       
       if (filaDestino) {
-        hojaBalance.getRange(filaDestino, 7).setValue(suma);
-        hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
-        hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
-        hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
-        hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
-        hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
-        hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-        hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
-        hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
+        hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);        // Columna B: COBROS
+        hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);     // Columna C: Nº PACIENTES
+        hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);        // Columna D: PTOs
+        hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);   // Columna E: Nº PTOs
+        hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0); // Columna F: PTO MEDIO
+        hojaBalance.getRange(filaDestino, 7).setValue(suma);           // Columna G: PTOs ACEPTADO (CORREGIDO)
+        hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);        // Columna H: Nº PAC ACEPT
+        hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);       // Columna I: PTOs PENDIENTES
+        hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);       // Columna J: Nº PAC PEND
       }
     } catch (error) {
+      Logger.log(`Error en ${nombreHoja} (tabla comparativa): ${error}`);
     }
   }
-      // Agregar la nueva funcionalidad de distribución de presupuestos
+  // Agregar la funcionalidad de distribución de presupuestos
   obtenerDistribucionPresupuestos(listaHojas, true);
 }
 
