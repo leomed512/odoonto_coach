@@ -421,7 +421,8 @@ function crearHojaPrevisiones(ss) {
         "TIPO DE PAGO", 
         "CITA", 
         "TRATAMIENTO",
-        "ESTADO / € TOTALES"
+        "ESTADO / € TOTALES",
+        "OBSERVACIONES" 
     ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
@@ -456,7 +457,8 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
         "",
         "",
         "",
-        estadoPago
+        estadoPago,
+        "" 
     ];
 
     hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
@@ -629,7 +631,7 @@ var encabezados = [
     "PREV ESPERADA", 
     "PREV PAGADA",
     "SALDO PENDIENTE", "TIPO DE PAGO", "CITA", 
-    "TRATAMIENTO", "ESTADO / € TOTALES" 
+    "TRATAMIENTO", "ESTADO / € TOTALES", "OBSERVACIONES"
 ];
 
 hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -687,6 +689,8 @@ var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encab
       }
     }
     hojaVista.setColumnWidths(1,2, 130);
+    hojaVista.setColumnWidth(13, 250); // Ancho para OBSERVACIONES
+    hojaVista.getRange("M6:M").setWrap(true); 
     hojaVista.setFrozenRows(5);
 }
 
@@ -906,7 +910,7 @@ function agregarPrevisionManual() {
     }
     
     // Obtener los datos de la fila seleccionada
-    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
+    var datosFila = hojaVista.getRange(fila, 1, 1, 13).getValues()[0];
     
     // Verificar que los datos mínimos necesarios estén presentes
     if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4] || !datosFila[5] || !datosFila[9]) {
@@ -933,6 +937,8 @@ function agregarPrevisionManual() {
     var saldoPendiente = datosFila[7];
     var tipo_pago = datosFila[8];
     var treatment = datosFila[10];
+    var observaciones = datosFila[12]; // OBSERVACIONES
+
 
     var ultimaFila = hojaStaging.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
@@ -951,7 +957,8 @@ function agregarPrevisionManual() {
         tipo_pago,
         cita,
         treatment,
-        estadoPago
+        estadoPago,
+        observaciones
     ];
 
 
@@ -999,7 +1006,7 @@ function manejarPrevision() {
     }
     
     // Obtener los datos de la fila seleccionada
-    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
+    var datosFila = hojaVista.getRange(fila, 1, 1, 13).getValues()[0];
     
     // Verificar que los datos mínimos necesarios estén presentes
     if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4]) {
@@ -1024,6 +1031,7 @@ function manejarPrevision() {
     var tipoPago = datosFila[8];          // Tipo de pago
     var cita = datosFila[9];              // Fecha de cita
     var tratamiento = datosFila[10];      // Tratamiento
+      var observaciones = datosFila[12];    // OBSERVACIONES
     var fechaInicio = cita || new Date(); // Usar fecha de cita o fecha actual como fecha de inicio
     
     // Determinar el estado de pago
@@ -1052,7 +1060,7 @@ function manejarPrevision() {
         var datosRegistro = [
             transactionId, fechaInicio, paciente, doctor, importeTotal,
             prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-            tratamiento, estadoPago
+            tratamiento, estadoPago,observaciones
         ];
         
         hojaStaging.getRange(ultimaFila, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1090,7 +1098,7 @@ function manejarPrevision() {
                 var datosRegistro = [
                     transactionId, fechaInicio, paciente, doctor, importeTotal,
                     prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-                    tratamiento, estadoPago
+                    tratamiento, estadoPago, observaciones
                 ];
                 
                 hojaStaging.getRange(ultimaFila, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1107,7 +1115,7 @@ function manejarPrevision() {
             var datosRegistro = [
                 transactionId, fechaInicio, paciente, doctor, importeTotal,
                 prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-                tratamiento, estadoPago
+                tratamiento, estadoPago, observaciones
             ];
             
             hojaStaging.getRange(filaEncontrada, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1141,7 +1149,7 @@ function manejarPrevision() {
                     var datosRegistro = [
                         transactionId, fechaInicio, paciente, doctor, importeTotal,
                         prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-                        tratamiento, estadoPago
+                        tratamiento, estadoPago, observaciones
                     ];
                     
                     hojaStaging.getRange(filaEncontrada, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1203,7 +1211,7 @@ function actualizarPrevisionManual() {
     }
     
     // Obtener los datos de la fila seleccionada
-    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
+    var datosFila = hojaVista.getRange(fila, 1, 1, 13).getValues()[0];
     
     // Verificar que los datos mínimos necesarios estén presentes
     if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4] || !datosFila[5] || !datosFila[9]) {
@@ -1286,6 +1294,7 @@ function actualizarPrevisionManual() {
     var saldoPendiente = datosFila[7];
     var tipo_pago = datosFila[8];
     var treatment = datosFila[10];
+    var observaciones = datosFila[12];
 
 
     var ultimaFila = hojaStaging.getLastRow() + 1;
@@ -1306,7 +1315,8 @@ function actualizarPrevisionManual() {
         tipo_pago,
         cita,
         treatment,
-        estadoPago
+        estadoPago,
+        observaciones
     ];
         hojaStaging.getRange(filaEncontrada, 1, 1, datosActualizados.length).setValues([datosActualizados]);
 
@@ -1676,87 +1686,6 @@ if (hoja.getName() === "Presupuestos Pendientes" && rango.getColumn() === 2) { /
     }
 }
 
-// function sincronizarConStagingPrevisiones(hojaMes, fila) {
-//   var ss = SpreadsheetApp.getActiveSpreadsheet();
-//   var hojaStaging = ss.getSheetByName("Staging Previsiones");
-  
-//   if (!hojaStaging) {
-//     Logger.log("No existe la hoja Staging Previsiones");
-//     return;
-//   }
-  
-//   // Obtener datos del registro en hojaMes
-//   var datosFila = hojaMes.getRange(fila, 1, 1, 14).getValues()[0];
-//   var transactionId = datosFila[0];  // ID TRANSACCIÓN
-//   var estado = datosFila[9];         // ESTADO
-  
-//   // Si no hay ID, no podemos sincronizar
-//   if (!transactionId) return;
-  
-//   // Obtener todos los datos de Staging Previsiones
-//   var datosStaging = hojaStaging.getDataRange().getValues();
-//   var filasActualizadas = 0;
-  
-//   // Buscar en Staging Previsiones los registros con el mismo ID
-//   for (var i = 1; i < datosStaging.length; i++) {
-//     if (datosStaging[i][0] === transactionId) {
-//       // Si el estado en hojaMes es !="Aceptado", eliminar este registro de Staging
-//       if (estado === "No aceptado"|| estado === "Pendiente con cita" || estado === "Pendiente sin cita") {
-//         // Marcar fila para eliminar (la eliminaremos después para no afectar los índices)
-//         hojaStaging.getRange(i+1, 1, 1, hojaStaging.getLastColumn()).setBackground("#ffcccc");
-//         // Podríamos eliminar con hojaStaging.deleteRow(i+1) pero lo haremos en un paso posterior
-//         filasActualizadas++;
-//       } else {
-//         // Actualizar datos en Staging Previsiones
-//         hojaStaging.getRange(i+1, 2).setValue(datosFila[12]); // FECHA INICIO
-//         hojaStaging.getRange(i+1, 3).setValue(datosFila[2]);  // PACIENTE
-//         hojaStaging.getRange(i+1, 4).setValue(datosFila[4]);  // DOCTOR
-//         hojaStaging.getRange(i+1, 5).setValue(datosFila[11]); // IMPORTE ACEPTADO
-//         hojaStaging.getRange(i+1, 5).setValue(datosFila[13]); // OBSERVACIONES
-        
-//         // Actualizar estado basado en estado en hojaMes
-//         // var estadoStaging = estado === "Aceptado" ? "PENDIENTE" : "CANCELADO";
-//         // hojaStaging.getRange(i+1, 12).setValue(estadoStaging);
-        
-//         filasActualizadas++;
-//       }
-//     }
-//   }
-  
-//   // Si el registro es "No aceptado", eliminar filas marcadas
-//   if (estado === "No aceptado"|| estado === "Pendiente con cita" || estado === "Pendiente sin cita") {
-//     // Buscar filas marcadas en rojo y eliminarlas (de abajo hacia arriba para no afectar índices)
-//     var rangos = hojaStaging.getDataRange();
-//     var valores = rangos.getValues();
-//     var formatos = rangos.getBackgrounds();
-    
-//     for (var i = formatos.length - 1; i >= 1; i--) {
-//       if (formatos[i][0] === "#ffcccc" && valores[i][0] === transactionId) {
-//         hojaStaging.deleteRow(i+1);
-//       }
-//     }
-//   }
-  
-//   // Si no se encontraron registros para actualizar y el estado es "Aceptado", crear uno nuevo
-//   if (filasActualizadas === 0 && estado === "Aceptado") {
-//     var fechaInicio = datosFila[12] || new Date();
-//     var importeAceptado = datosFila[11] || 0;
-    
-//     agregarAStagingPrevisiones(
-//       hojaStaging, 
-//       transactionId, 
-//       fechaInicio, 
-//       datosFila[2],  // PACIENTE
-//       datosFila[4],  // DOCTOR
-//       importeAceptado
-//     );
-//   }
-  
-//   // Actualizar vistas
-//   if (ss.getSheetByName("Vista Previsiones")) {
-//     actualizarVistaPrevisiones();
-//   }
-// }
 
 function sincronizarConStagingPrevisiones(hojaMes, fila) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1795,9 +1724,7 @@ function sincronizarConStagingPrevisiones(hojaMes, fila) {
         hojaStaging.getRange(i+1, 2).setValue(datosFila[12]); // FECHA INICIO
         hojaStaging.getRange(i+1, 3).setValue(datosFila[2]);  // PACIENTE
         hojaStaging.getRange(i+1, 4).setValue(datosFila[4]);  // DOCTOR
-        hojaStaging.getRange(i+1, 5).setValue(datosFila[11]); // IMPORTE ACEPTADO
-        hojaStaging.getRange(i+1, 11).setValue(datosFila[13]); // OBSERVACIONES
-        
+        hojaStaging.getRange(i+1, 5).setValue(datosFila[11]); // IMPORTE ACEPTADO        
         filasActualizadas++;
       }
     }
