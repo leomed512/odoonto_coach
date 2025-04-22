@@ -269,13 +269,13 @@ function saveDateRange(startDate, endDate) {
   tipoPago.forEach(function(tpago) { 
     rangoPrev.forEach(function(prev) { 
         if (tpago === prev[8] && tpago === "70/30 o 50/50") {
-          partes += prev[5];
+          partes += prev[6];
         } else if (tpago === prev[8] && tpago === "FINANC") {
-          finan += prev[5];
+          finan += prev[6];
         } else if (tpago === prev[8] && tpago === "Pronto pago") {
-          pontoPago += prev[5];
+          pontoPago += prev[6];
         } else if (tpago === prev[8] && tpago === "Según TTO") {
-          segunTTO += prev[5];
+          segunTTO += prev[6];
         }
    });
   });

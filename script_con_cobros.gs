@@ -321,7 +321,7 @@ function actualizarTablaResumen(hojaMes) {
     if (!tablaExiste) {
         var resumenEncabezados = [
             ["ENVIAR SEMANALMENTE", "", ""],  
-            ["Gerencia@odontologycoach.cr", "", ""],  
+            ["Gerencia@odontologycoach.com", "", ""],  
             ["", "IMPORTES", "N° PACIENTES"],  
             ["TOTAL PRESUPUESTADO", "", ""],  
             ["TOTAL ACEPTADO", "", ""], 
@@ -1441,76 +1441,7 @@ function onEdit(e) {
             }
         }
     }    
-  // // Bloque único: Detectar cambio de estado en hojas relevantes
-  // if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros") && hoja.getName() !== "Vista Previsiones") {
-  //   var estadoNuevo = rango.getValue();
-  //   var fila = rango.getRow();
-  //   if (fila < 11) return; // Ignorar filas de encabezado
-    
-  //   var estadoAnterior = e.oldValue;
-    
-  //   if (estadoNuevo === "Aceptado") {
-  //     var ss = SpreadsheetApp.getActiveSpreadsheet();
-  //     var transactionId = hoja.getRange(fila, 1).getValue();
-  //     var fechaInicio = hoja.getRange(fila, 13).getValue(); // Columna M - FECHA INICIO
-  //     var importeAceptado = hoja.getRange(fila, 12).getValue(); // Columna L - IMPORTE ACEPTADO
-      
-  //     var errores = [];
-  //     var hojaPrevisiones = ss.getSheetByName("Staging Previsiones");
-  //     var existeEnStaging = false;
-      
-  //     if (hojaPrevisiones) {
-  //       var datosStaging = hojaPrevisiones.getRange("A:A").getValues();
-  //       existeEnStaging = datosStaging.some(row => row[0] === transactionId);
-  //     }
-      
-  //     if (!fechaInicio) {
-  //       errores.push("• La FECHA INICIO / CONCRETAR es obligatoria\n\n");
-  //     }
-      
-  //     if (!importeAceptado) {
-  //       errores.push("• El IMPORTE ACEPTADO es obligatorio\n\n");
-  //     }
-      
-  //     if (errores.length > 0) {
-  //       rango.setValue(estadoAnterior);
-  //       Browser.msgBox("No se puede cambiar a Aceptado", "Corrija estos errores:" + errores.join("\n\n"), Browser.Buttons.OK);
-  //       return;
-  //     }
-      
-  //     var paciente = hoja.getRange(fila, 3).getValue();
-  //     var doctor = hoja.getRange(fila, 5).getValue();
-      
-  //     if (!yaActualizadoStaging) {
-  //       agregarAStagingPrevisiones(hojaPrevisiones || crearHojaPrevisiones(ss), transactionId, fechaInicio, paciente, doctor, importeAceptado);
-  //       yaActualizadoStaging = true;
-  //     }
-      
-  //     // Eliminar de Presupuestos Pendientes si corresponde
-  //     sincronizarConPresupuestosPendientes(hoja, fila);
-  //   }
-    
-  //   actualizarFormatoFila(hoja, fila, rango.getValue());
-  // }
-  
-  // // Sincronizar hojas mensuales (se ejecuta solo si se edita en la zona de datos de hojas mensuales)
-  // var nombreHoja = hoja.getName();
-  // var patronMes = /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre) de \d{4}$/;
-  
-  // if (patronMes.test(nombreHoja) && rango.getRow() >= 11) {
-  //   var columnaEditada = rango.getColumn();
-  //   var columnasRelevantes = [1, 3, 5, 6, 10, 11, 12, 13, 14];
-    
-  //   if (columnasRelevantes.includes(columnaEditada)) {
-  //     if (columnaEditada === 10 && yaActualizadoStaging) {
-  //       // Si ya se actualizó por el cambio de estado, solo sincronizamos pendientes
-  //       sincronizarConPresupuestosPendientes(hoja, rango.getRow());
-  //     } else {
-  //       sincronizarConStagingPrevisiones(hoja, rango.getRow());
-  //     }
-  //   }
-  // }
-//// 
+
   // Detectar cambios en la hoja "BALANCE GENERAL"
     if (hoja.getName() === "BALANCE GENERAL") {
         if (rango.getA1Notation() === "A2") { // Solo si editan A2
@@ -1628,14 +1559,14 @@ function onEdit(e) {
 
       }
   }
-    // Detectar cambio de ESTADO en PRESUPUESTOS PENDIENTES
+    // Detectar cambio de ESTADO en PRESUPUESTOS PENDIENTES 
 if (hoja.getName() === "Presupuestos Pendientes" && rango.getColumn() === 2) { // Columna O (Estado)
     var estadoNuevo = rango.getValue();
     var fila = rango.getRow();
     if (fila < 4) return; // Las primeras filas son encabezados
 
     var estadoAnterior = e.oldValue;
-    actualizarFormatoFilaPendientes(hoja, fila, estadoNuevo);
+    //actualizarFormatoFilaPendientes(hoja, fila, estadoNuevo);
     
     // Si el estado cambia a "Aceptado", mover a Staging Previsiones
     if (estadoNuevo === "Aceptado") {
@@ -1648,12 +1579,33 @@ if (hoja.getName() === "Presupuestos Pendientes" && rango.getColumn() === 2) { /
         var fechaPto = hoja.getRange(fila, 11).getValue();     // Fecha del presupuesto en columna K
         var importe = hoja.getRange(fila, 10).getValue();      // Importe presupuestado en columna J
         var importeAceptado = hoja.getRange(fila, 12).getValue(); // Importe aceptado en columna L
-        
+        var errores = [];
         // Verificar si hay fecha de inicio, usar fecha actual si no existe
         var fechaInicio = hoja.getRange(fila, 3).getValue();  // Fecha de próxima cita/llamada en columna C
         if (!fechaInicio) {
             fechaInicio = new Date();
         }
+
+        if (!importeAceptado || importeAceptado <= 0) {
+            errores.push("• El IMPORTE ACEPTADO es obligatorio");
+        }
+         // Si hay errores, cancelar el cambio de estado y mostrar los errores
+        if (errores.length > 0) {
+            // Revertir al estado anterior
+            rango.setValue(estadoAnterior || "");
+            
+            // Mostrar mensaje de error
+            Browser.msgBox("No se puede cambiar a Aceptado",
+                          "Por favor corrija lo siguiente:\n\n" +
+                          errores.join("\n"), 
+                          Browser.Buttons.OK);
+            return; // Terminar la ejecución para evitar más procesamiento
+        }
+      actualizarFormatoFilaPendientes(hoja, fila, estadoNuevo);
+
+    }else {
+        // Si no es Aceptado, actualizar el formato normalmente
+        actualizarFormatoFilaPendientes(hoja, fila, estadoNuevo);
     }
 
     var fecha = new Date(fechaPto);
