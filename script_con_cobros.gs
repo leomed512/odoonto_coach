@@ -234,7 +234,18 @@ hojaPend.getRange("C4:C").setDataValidation(validacionFecha); // Próxima cita/l
 hojaPend.getRange("K4:K").setDataValidation(validacionFecha); // Fecha última acción
 hojaPend.getRange("N4:N").setDataValidation(validacionFecha); // Fecha próxima llamada
 hojaPend.getRange("N4:N").setNumberFormat("dd/MM/yyyy HH:mm:ss");
+//--------------------------------------
+    // Añadir protección a las filas 1:2 para todos los usuarios
+    var proteccion = hojaPend.getRange("1:2").protect();
+    
+    // Establecer una descripción clara para la advertencia
+    proteccion.setDescription("¡ATENCIÓN! Esta área contiene la tabla resumen y fórmulas importantes. No se recomienda modificar este rango manualmente.");
 
+    
+    // Configurar para que el propietario también vea la advertencia (pero todavía puede editar)
+    proteccion.setWarningOnly(true);
+
+//-------------------------------------
 
     return hojaPend;
 }
@@ -287,6 +298,19 @@ function crearHojaMes(ss, nombreMes) {
     .setAllowInvalid(false)
     .build();
 hojaMes.getRange("M11:M").setDataValidation(validacionFecha);
+
+//--------------------------------------
+    // Añadir protección a las filas 1:5 para todos los usuarios
+    var proteccion = hojaMes.getRange("1:9").protect();
+    
+    // Establecer una descripción clara para la advertencia
+    proteccion.setDescription("¡ATENCIÓN! Esta área contiene la tabla resumen y fórmulas importantes. No se recomienda modificar este rango manualmente.");
+
+    
+    // Configurar para que el propietario también vea la advertencia (pero todavía puede editar)
+    proteccion.setWarningOnly(true);
+
+//-------------------------------------
     return hojaMes;
 }
 
@@ -421,8 +445,7 @@ function crearHojaPrevisiones(ss) {
         "TIPO DE PAGO", 
         "CITA", 
         "TRATAMIENTO",
-        "ESTADO / € TOTALES",
-        "OBSERVACIONES" 
+        "ESTADO / € TOTALES"
     ];
 
     hojaPrevisiones.getRange(1, 1, 1, encabezados.length).setValues([encabezados])
@@ -457,8 +480,7 @@ function agregarAStagingPrevisiones(hojaPrevisiones, transactionId, fechaInicio,
         "",
         "",
         "",
-        estadoPago,
-        "" 
+        estadoPago
     ];
 
     hojaPrevisiones.getRange(ultimaFila, 1, 1, nuevaFila.length).setValues([nuevaFila]);
@@ -631,7 +653,7 @@ var encabezados = [
     "PREV ESPERADA", 
     "PREV PAGADA",
     "SALDO PENDIENTE", "TIPO DE PAGO", "CITA", 
-    "TRATAMIENTO", "ESTADO / € TOTALES", "OBSERVACIONES"
+    "TRATAMIENTO", "ESTADO / € TOTALES" 
 ];
 
 hojaVista.getRange(5, 1, 1, encabezados.length).setValues([encabezados])
@@ -689,9 +711,33 @@ var numFilasConDatos = datosStaging.length - 1; // Restar 1 por la fila de encab
       }
     }
     hojaVista.setColumnWidths(1,2, 130);
-    hojaVista.setColumnWidth(13, 250); // Ancho para OBSERVACIONES
-    hojaVista.getRange("M6:M").setWrap(true); 
     hojaVista.setFrozenRows(5);
+
+//----------------------------------------------------------- protección de rangos
+
+var proteccionTitulo = hojaVista.getRange("1:1").protect();
+proteccionTitulo.setDescription("¡ATENCIÓN! Este es el título de la hoja y no debe modificarse.");
+proteccionTitulo.setWarningOnly(true);
+
+var proteccionLinea = hojaVista.getRange("4:4").protect();
+proteccionLinea.setDescription("¡ATENCIÓN! Este es el título de la hoja y no debe modificarse.");
+proteccionLinea.setWarningOnly(true);
+
+
+var proteccionEtiquetas = hojaVista.getRange("A2:A3").protect();
+proteccionEtiquetas.setDescription("¡ATENCIÓN! Estas son etiquetas importantes y no deben modificarse.");
+proteccionEtiquetas.setWarningOnly(true);
+
+
+var proteccionInstrucciones = hojaVista.getRange("C2:Z2").protect();
+proteccionInstrucciones.setDescription("¡ATENCIÓN! Esta área contiene instrucciones importantes y no debe modificarse.");
+proteccionInstrucciones.setWarningOnly(true);
+
+
+var proteccionFechasControl = hojaVista.getRange("C3:Z3").protect();
+proteccionFechasControl.setDescription("¡ATENCIÓN! Esta área contiene cálculos importantes para el control de fechas.");
+proteccionFechasControl.setWarningOnly(true);
+///---------------------------------------------------------
 }
 
 
@@ -775,41 +821,6 @@ function configurarTablaResumen(hojaVista) {
     hojaVista.autoResizeColumns(14, 3);
 
 }
-
-// function configurarTablaResumen(hojaVista) {
-//     var resumenEncabezados = [
-//         ["RESUMEN", "", ""],  
-//         ["Total Importe", "=IF(COUNTA(A6:A)=0, 0, SUM(UNIQUE(FILTER(E6:INDEX(E:E, MATCH(2, 1/(A6:A<>\"\"), 1) + 5), A6:INDEX(A:A, MATCH(2, 1/(A6:A<>\"\"), 1) + 5)<>\"\"))))", ""],
-//         ["Previsión mes actual", "=IFERROR(MAX(SUM(F6:INDEX(F:F, MAX(FILTER(ROW(F6:F), F6:F<>\"\")))) - SUM(G6:INDEX(G:G, MAX(FILTER(ROW(G6:G), G6:G<>\"\")))), 0), 0)", ""],
-//         ["Previsión abonada", "=SUM(G6:G)", ""] // Referencia a columna G
-//     ];
-
-//     // Cambiar el rango de escritura de (1, 14) a (1, 4)
-//     var rangoResumen = hojaVista.getRange(1, 4, resumenEncabezados.length, 3);
-//     rangoResumen.setValues(resumenEncabezados);
-
-//     // Actualizar referencias de celdas para el formato
-//     // De N1:O1 a D1:E1
-//     hojaVista.getRange("D1:E1")
-//         .setBackground("#424242")
-//         .setFontColor("white")
-//         .setFontWeight("bold")
-//         .merge();
-    
-//     // De O2:O4 a E2:E4
-//     hojaVista.getRange("E2:E4").setNumberFormat("€#,##0.00");
-    
-//     // Estilos alternados
-//     hojaVista.getRange("D2:E2").setBackground("#f6f6f6");
-//     hojaVista.getRange("D3:E3").setBackground("#e2e2e2");
-//     hojaVista.getRange("D4:E4").setBackground("#f6f6f6");
-    
-//     // Bordes
-//     hojaVista.getRange("D1:E4").setBorder(true, true, true, true, true, true); 
-    
-//     // Cambiar autoResize de columnas 14,3 a 4,3
-//     hojaVista.autoResizeColumns(4, 3);
-// }
 
 ///// Actualizar Vista de Previsiones luego de filtrar por fecha
 
@@ -910,7 +921,7 @@ function agregarPrevisionManual() {
     }
     
     // Obtener los datos de la fila seleccionada
-    var datosFila = hojaVista.getRange(fila, 1, 1, 13).getValues()[0];
+    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
     
     // Verificar que los datos mínimos necesarios estén presentes
     if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4] || !datosFila[5] || !datosFila[9]) {
@@ -937,8 +948,6 @@ function agregarPrevisionManual() {
     var saldoPendiente = datosFila[7];
     var tipo_pago = datosFila[8];
     var treatment = datosFila[10];
-    var observaciones = datosFila[12]; // OBSERVACIONES
-
 
     var ultimaFila = hojaStaging.getLastRow() + 1;
     var tipoPagoOpciones = ["70/30 o 50/50", "FINANC", "Pronto pago", "Según TTO"];
@@ -957,8 +966,7 @@ function agregarPrevisionManual() {
         tipo_pago,
         cita,
         treatment,
-        estadoPago,
-        observaciones
+        estadoPago
     ];
 
 
@@ -1006,7 +1014,7 @@ function manejarPrevision() {
     }
     
     // Obtener los datos de la fila seleccionada
-    var datosFila = hojaVista.getRange(fila, 1, 1, 13).getValues()[0];
+    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
     
     // Verificar que los datos mínimos necesarios estén presentes
     if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4]) {
@@ -1031,7 +1039,6 @@ function manejarPrevision() {
     var tipoPago = datosFila[8];          // Tipo de pago
     var cita = datosFila[9];              // Fecha de cita
     var tratamiento = datosFila[10];      // Tratamiento
-      var observaciones = datosFila[12];    // OBSERVACIONES
     var fechaInicio = cita || new Date(); // Usar fecha de cita o fecha actual como fecha de inicio
     
     // Determinar el estado de pago
@@ -1060,7 +1067,7 @@ function manejarPrevision() {
         var datosRegistro = [
             transactionId, fechaInicio, paciente, doctor, importeTotal,
             prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-            tratamiento, estadoPago,observaciones
+            tratamiento, estadoPago
         ];
         
         hojaStaging.getRange(ultimaFila, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1098,7 +1105,7 @@ function manejarPrevision() {
                 var datosRegistro = [
                     transactionId, fechaInicio, paciente, doctor, importeTotal,
                     prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-                    tratamiento, estadoPago, observaciones
+                    tratamiento, estadoPago
                 ];
                 
                 hojaStaging.getRange(ultimaFila, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1115,7 +1122,7 @@ function manejarPrevision() {
             var datosRegistro = [
                 transactionId, fechaInicio, paciente, doctor, importeTotal,
                 prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-                tratamiento, estadoPago, observaciones
+                tratamiento, estadoPago
             ];
             
             hojaStaging.getRange(filaEncontrada, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1149,7 +1156,7 @@ function manejarPrevision() {
                     var datosRegistro = [
                         transactionId, fechaInicio, paciente, doctor, importeTotal,
                         prevEsperada, prevPagada, saldoPendiente, tipoPago, cita, 
-                        tratamiento, estadoPago, observaciones
+                        tratamiento, estadoPago
                     ];
                     
                     hojaStaging.getRange(filaEncontrada, 1, 1, datosRegistro.length).setValues([datosRegistro]);
@@ -1211,7 +1218,7 @@ function actualizarPrevisionManual() {
     }
     
     // Obtener los datos de la fila seleccionada
-    var datosFila = hojaVista.getRange(fila, 1, 1, 13).getValues()[0];
+    var datosFila = hojaVista.getRange(fila, 1, 1, 12).getValues()[0];
     
     // Verificar que los datos mínimos necesarios estén presentes
     if (!datosFila[0] || !datosFila[2] || !datosFila[3] || !datosFila[4] || !datosFila[5] || !datosFila[9]) {
@@ -1294,7 +1301,6 @@ function actualizarPrevisionManual() {
     var saldoPendiente = datosFila[7];
     var tipo_pago = datosFila[8];
     var treatment = datosFila[10];
-    var observaciones = datosFila[12];
 
 
     var ultimaFila = hojaStaging.getLastRow() + 1;
@@ -1315,8 +1321,7 @@ function actualizarPrevisionManual() {
         tipo_pago,
         cita,
         treatment,
-        estadoPago,
-        observaciones
+        estadoPago
     ];
         hojaStaging.getRange(filaEncontrada, 1, 1, datosActualizados.length).setValues([datosActualizados]);
 
@@ -1491,66 +1496,7 @@ function onEdit(e) {
         }
     }
 
-         // Detectar cambio de ESTADO en cualquier hoja relevante
-    // if (rango.getColumn() === 10 && !hoja.getName().startsWith("Cobros") && hoja.getName() !== "Vista Previsiones") {
-    //     var estadoNuevo = rango.getValue();
-    //     var fila = rango.getRow();
-    //     if (fila < 11) return; // Ignorar filas de encabezado
-        
-    //     var estadoAnterior = e.oldValue;
-        
-    //     // Si el cambio es a "Aceptado", verificar las condiciones necesarias
-    //     if (estadoNuevo === "Aceptado") {
-    //         var ss = SpreadsheetApp.getActiveSpreadsheet();
-    //         var transactionId = hoja.getRange(fila, 1).getValue();
-    //         var fechaInicio = hoja.getRange(fila, 13).getValue(); // Columna M - FECHA INICIO
-    //         var importeAceptado = hoja.getRange(fila, 12).getValue(); // Columna L - IMPORTE ACEPTADO
-            
-    //         // Crear lista de errores
-    //         var errores = [];
-            
-    //         // Verificar si el ID ya existe en Staging Previsiones
-    //         var hojaPrevisiones = ss.getSheetByName("Staging Previsiones");
-    //         // if (hojaPrevisiones && existeIdEnHoja(hojaPrevisiones, transactionId)) {
-    //         //     errores.push(`• ID de transacción ${transactionId} ya existe en Staging Previsiones\n\n`);
-    //         // }
-            
-    //         // Verificar que haya fecha de inicio
-    //         if (!fechaInicio) {
-    //             errores.push("• La FECHA INICIO / CONCRETAR es obligatoria\n\n");
-    //         }
-            
-    //         // Verificar que el importe aceptado sea válido
-    //         if (!importeAceptado) {
-    //             errores.push("• El IMPORTE ACEPTADO es obligatorio\n\n");
-    //         }
-            
-    //         // Si hay errores, impedir el cambio de estado
-    //         if (errores.length > 0) {
-    //             // Revertir al estado anterior
-    //             rango.setValue(estadoAnterior);
-                
-    //             // Mostrar mensaje de error
-                
-    //             Browser.msgBox("No se puede cambiar a Aceptado",
-    //                            "Corrija estos errores:"  +
-    //                            errores.join("\n\n"), 
-    //                            Browser.Buttons.OK);
-    //             return; // Terminar la ejecución para evitar más procesamiento
-    //         }
-            
-    //         // Si no hay errores, proceder con el cambio de estado y actualización
-    //         var paciente = hoja.getRange(fila, 3).getValue();
-    //         var doctor = hoja.getRange(fila, 5).getValue();
-            
-    //         // Agregar a Staging Previsiones solo si pasa todas las validaciones
-    //         agregarAStagingPrevisiones(hojaPrevisiones || crearHojaPrevisiones(ss), 
-    //                                   transactionId, fechaInicio, paciente, doctor, importeAceptado);
-    //     }
-        
-    //     // Actualizar formato de la fila según el estado final
-    //     actualizarFormatoFila(hoja, fila, rango.getValue());
-    // }
+      
 ////// registrar cambios en un presupuesto y guardar FECHA ÚLTIMA ACCIÓN
 
   if (hoja.getName() === "Presupuestos Pendientes") {
@@ -1686,7 +1632,6 @@ if (hoja.getName() === "Presupuestos Pendientes" && rango.getColumn() === 2) { /
     }
 }
 
-
 function sincronizarConStagingPrevisiones(hojaMes, fila) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var hojaStaging = ss.getSheetByName("Staging Previsiones");
@@ -1724,7 +1669,9 @@ function sincronizarConStagingPrevisiones(hojaMes, fila) {
         hojaStaging.getRange(i+1, 2).setValue(datosFila[12]); // FECHA INICIO
         hojaStaging.getRange(i+1, 3).setValue(datosFila[2]);  // PACIENTE
         hojaStaging.getRange(i+1, 4).setValue(datosFila[4]);  // DOCTOR
-        hojaStaging.getRange(i+1, 5).setValue(datosFila[11]); // IMPORTE ACEPTADO        
+        hojaStaging.getRange(i+1, 5).setValue(datosFila[11]); // IMPORTE ACEPTADO
+        hojaStaging.getRange(i+1, 11).setValue(datosFila[13]); // OBSERVACIONES
+        
         filasActualizadas++;
       }
     }
@@ -2125,6 +2072,31 @@ function configurarVistaCobros(hojaVista, ss) {
     configurarTablaResumenCobros(hojaVista);
     hojaVista.setColumnWidths(1,7, 150);
     hojaVista.setFrozenRows(5);
+    //----------------------------------------------------------- protección de rangos
+
+var proteccionTitulo = hojaVista.getRange("1:1").protect();
+proteccionTitulo.setDescription("¡ATENCIÓN! Este es el título de la hoja y no debe modificarse.");
+proteccionTitulo.setWarningOnly(true);
+
+var proteccionLinea = hojaVista.getRange("4:4").protect();
+proteccionLinea.setDescription("¡ATENCIÓN! Este es el título de la hoja y no debe modificarse.");
+proteccionLinea.setWarningOnly(true);
+
+
+var proteccionEtiquetas = hojaVista.getRange("A2:A3").protect();
+proteccionEtiquetas.setDescription("¡ATENCIÓN! Estas son etiquetas importantes y no deben modificarse.");
+proteccionEtiquetas.setWarningOnly(true);
+
+
+var proteccionInstrucciones = hojaVista.getRange("C2:Z2").protect();
+proteccionInstrucciones.setDescription("¡ATENCIÓN! Esta área contiene instrucciones importantes y no debe modificarse.");
+proteccionInstrucciones.setWarningOnly(true);
+
+
+var proteccionFechasControl = hojaVista.getRange("C3:Z3").protect();
+proteccionFechasControl.setDescription("¡ATENCIÓN! Esta área contiene cálculos importantes para el control de fechas.");
+proteccionFechasControl.setWarningOnly(true);
+///---------------------------------------------------------
 }
 
 function configurarTablaResumenCobros(hojaVista) {
@@ -2470,115 +2442,6 @@ function actualizarFiltroDeAnios() {
 
 }
 
-
-////// función de configurar BALANCE GENERAL 
-
-// function balanceGeneral(annio) {
-//   var listaHojas = obtenerHojasPorMesYAnio(annio);
-//   var mesAFila = {
-//     "Enero": 5,
-//     "Febrero": 6,
-//     "Marzo": 7,
-//     "Abril": 8,
-//     "Mayo": 9,
-//     "Junio": 10,
-//     "Julio": 11,
-//     "Agosto": 12,
-//     "Septiembre": 13,
-//     "Octubre": 14,
-//     "Noviembre": 15,
-//     "Diciembre": 16
-//   };
-  
-//   var ss = SpreadsheetApp.getActiveSpreadsheet();
-//   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
-//   hojaBalance.getRange("B5:J16").clearContent();
-
-//   for (var i = 0; i < listaHojas.length; i++) {
-//     var hoja = listaHojas[i];
-//     try {
-//       var nombreHoja = hoja.getName();
-//       var mes = nombreHoja.split(" de ")[0];
-
-//       var suma = 0;
-//       var suma_pre = 0;
-//       var pac_acep = 0;
-//      var suma_pend = 0;
-//       var pac_pend = 0;
-
-//       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
-//       var startRow = 11; // Primera fila de interés
-//       if (lastRow >= startRow) {
-//         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
-//         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
-//         var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
-//         var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
-
-//         var n_pacientes = 0;
-//         for (var j = 0; j < pacientes.length; j++) {
-//           if (pacientes[j][0]) n_pacientes++;
-//         }
-        
-//         var n_presupuesto = 0;
-//         for (var j = 0; j < presupuestos.length; j++) {
-//           if (presupuestos[j][0]) n_presupuesto++;
-//         }
-//       } else {
-//         var n_pacientes = 0;
-//         var n_presupuesto = 0;
-//       }
-
-//       var abonoMes = sumarAbonosPorMes(mes);
-
-//           for (var j = 0; j < aceptados.length; j++) {
-//         if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
-//           pac_acep += 1;
-//         }
-//         // Añadir conteo de pacientes pendientes
-//         if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
-//           pac_pend += 1;
-          
-//           // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
-//           if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-//             suma_pend += presupuestos[j][0];
-//           }
-//         }
-//       }
-      
-
-//       for (var j = 0; j < presupuestos.length; j++) {
-//         if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-//           suma_pre += presupuestos[j][0];
-//         }
-//       }
-
-//       for (var j = 0; j < valores.length; j++) {
-//         if (valores[j][0] && typeof valores[j][0] === 'number') {
-//           suma += valores[j][0];
-//         }
-//       }
-      
-//       var filaDestino = mesAFila[mes];
-      
-//       if (filaDestino) {
-//         hojaBalance.getRange(filaDestino, 7).setValue(suma);
-//         hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
-//         hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
-//         hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
-//         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
-//         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
-//         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-//         hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
-//         hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
-//       }
-//     } catch (error) {
-//       Logger.log(`Error en ${nombreHoja} (tabla principal): ${error}`);
-//     }
-//   }
-//     // Agregar funcionalidad de distribución de presupuestos
-//   obtenerDistribucionPresupuestos(listaHojas, false);
-// }
-
 // Función corregida para balanceGeneral
 function balanceGeneral(annio) {
   var listaHojas = obtenerHojasPorMesYAnio(annio);
@@ -2689,113 +2552,6 @@ function balanceGeneral(annio) {
 }
 
 
-//////////////////////////// BALANCE GENERAL COMPARACIÓN
-
-// Función para el balance general de la tabla de comparación
-
-// function balanceGeneralComparacion(annio) {
-//   var listaHojas = obtenerHojasPorMesYAnio(annio);
-//   var mesAFila = {
-//     "Enero": 29,
-//     "Febrero": 30,
-//     "Marzo": 31,
-//     "Abril": 32,
-//     "Mayo": 33,
-//     "Junio": 34,
-//     "Julio": 35,
-//     "Agosto": 36,
-//     "Septiembre": 37,
-//     "Octubre": 38,
-//     "Noviembre": 39,
-//     "Diciembre": 40
-//   };
-  
-//   var ss = SpreadsheetApp.getActiveSpreadsheet();
-//   var hojaBalance = ss.getSheetByName('BALANCE GENERAL');
-//   hojaBalance.getRange("B29:J40").clearContent();
-
-//   for (var i = 0; i < listaHojas.length; i++) {
-//     var hoja = listaHojas[i];
-//     try {
-//       var nombreHoja = hoja.getName();
-//       var mes = nombreHoja.split(" de ")[0];
-
-//       var suma = 0;
-//       var suma_pre = 0;
-//       var pac_acep = 0;
-//       var suma_pend = 0; // Nueva variable para la suma de presupuestos pendientes
-//       var pac_pend = 0;  // Nueva variable para el conteo de pacientes pendientes
-
-//       var lastRow = hoja.getLastRow(); // Última fila con datos en la hoja
-//       var startRow = 11; // Primera fila de interés
-//       if (lastRow >= startRow) {
-//         var valores = hoja.getRange(startRow, 12, lastRow - startRow + 1, 1).getValues();
-//         var pacientes = hoja.getRange(startRow, 1, lastRow - startRow + 1, 1).getValues();
-//         var presupuestos = hoja.getRange(startRow, 11, lastRow - startRow + 1, 1).getValues();
-//         var aceptados = hoja.getRange(startRow, 10, lastRow - startRow + 1, 1).getValues();
-
-//         var n_pacientes = 0;
-//         for (var j = 0; j < pacientes.length; j++) {
-//           if (pacientes[j][0]) n_pacientes++;
-//         }
-        
-//         var n_presupuesto = 0;
-//         for (var j = 0; j < presupuestos.length; j++) {
-//           if (presupuestos[j][0]) n_presupuesto++;
-//         }
-//       } else {
-//         var n_pacientes = 0;
-//         var n_presupuesto = 0;
-//       }
-
-//       var abonoMes = sumarAbonosPorMes(mes);
-
-//       for (var j = 0; j < aceptados.length; j++) {
-//         if (aceptados[j][0] && aceptados[j][0] === 'Aceptado') {
-//           pac_acep += 1;
-//         }
-//         // Añadir conteo de pacientes pendientes
-//         if (aceptados[j][0] && (aceptados[j][0] === 'Pendiente con cita' || aceptados[j][0] === 'Pendiente sin cita')) {
-//           pac_pend += 1;
-          
-//           // Si el presupuesto correspondiente tiene un valor numérico, sumarlo a suma_pend
-//           if (j < presupuestos.length && presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-//             suma_pend += presupuestos[j][0];
-//           }
-//         }
-//       }
-
-//       for (var j = 0; j < presupuestos.length; j++) {
-//         if (presupuestos[j][0] && typeof presupuestos[j][0] === 'number') {
-//           suma_pre += presupuestos[j][0];
-//         }
-//       }
-
-//       for (var j = 0; j < valores.length; j++) {
-//         if (valores[j][0] && typeof valores[j][0] === 'number') {
-//           suma += valores[j][0];
-//         }
-//       }
-      
-//       var filaDestino = mesAFila[mes];
-      
-//       if (filaDestino) {
-//         hojaBalance.getRange(filaDestino, 7).setValue(suma);
-//         hojaBalance.getRange(filaDestino, 3).setValue(n_pacientes);
-//         hojaBalance.getRange(filaDestino, 5).setValue(n_presupuesto);
-//         hojaBalance.getRange(filaDestino, 4).setValue(suma_pre);
-//         hojaBalance.getRange(filaDestino, 6).setValue(n_presupuesto > 0 ? suma_pre/n_presupuesto : 0);
-//         hojaBalance.getRange(filaDestino, 8).setValue(pac_acep);
-//         hojaBalance.getRange(filaDestino, 2).setValue(abonoMes);
-//         hojaBalance.getRange(filaDestino, 9).setValue(suma_pend);  // Columna I: PENDIENTE
-//         hojaBalance.getRange(filaDestino, 10).setValue(pac_pend);  // Columna J: Nº PAC PEND
-//       }
-//     } catch (error) {
-//     }
-//   }
-//       // Agregar la nueva funcionalidad de distribución de presupuestos
-//   obtenerDistribucionPresupuestos(listaHojas, true);
-// }
 function balanceGeneralComparacion(annio) {
   var listaHojas = obtenerHojasPorMesYAnio(annio);
   var mesAFila = {

@@ -266,19 +266,20 @@ function saveDateRange(startDate, endDate) {
   var finan = 0;
   var pontoPago = 0;
   var segunTTO = 0;
-  tipoPago.forEach(function(tpago) { 
-    rangoPrev.forEach(function(prev) { 
-        if (tpago === prev[8] && tpago === "70/30 o 50/50") {
-          partes += prev[6];
-        } else if (tpago === prev[8] && tpago === "FINANC") {
-          finan += prev[6];
-        } else if (tpago === prev[8] && tpago === "Pronto pago") {
-          pontoPago += prev[6];
-        } else if (tpago === prev[8] && tpago === "Según TTO") {
-          segunTTO += prev[6];
-        }
+tipoPago.forEach(function(tpago) { 
+  rangoPrev.forEach(function(prev) { 
+      if (tpago === prev[8] && tpago === "70/30 o 50/50") {
+        // Asegurarse de que se trate como número
+        partes += Number(prev[6]);
+      } else if (tpago === prev[8] && tpago === "FINANC") {
+        finan += Number(prev[6]);
+      } else if (tpago === prev[8] && tpago === "Pronto pago") {
+        pontoPago += Number(prev[6]);
+      } else if (tpago === prev[8] && tpago === "Según TTO") {
+        segunTTO += Number(prev[6]);
+      }
    });
-  });
+});
   sheet.getRange("C40").setValue(partes);
   sheet.getRange("C41").setValue(finan);
   sheet.getRange("C42").setValue(pontoPago);
